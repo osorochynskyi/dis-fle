@@ -1,0 +1,971 @@
+---
+title: "Article 1"
+subtitle: "Supplimentary material"
+author: "Oleksandr Sorochynskyi"
+date: "`r today()`"
+bibliography: "My Library.bib"
+output:
+    bookdown::pdf_document2: 
+        number_sections: true
+        keep_tex: no
+        latex_engine: lualatex
+        toc: true
+        includes:
+            in_header:
+                - "papreambule.tex"
+---
+
+```{r setup, include = FALSE}
+# Pretty much all settings are loaded except for knit options
+source("R/options_visual.R")
+options(OutDec = ".")
+```
+
+
+# Data {#sec:data}
+
+## Background
+
+The data used is a subset of the PMSI database that describes hospitalizations
+of healthy individuals on 1st of January 2010. The PMSI database contains data
+from all healthcare establishments in France.  This data was first used, and
+described in @schwarzinger_etude_2018, that article is in French, therefore we
+repeat the description here. Moreover, the processing applied to the data is
+different, which we also describe here.
+
+The complete PMSI database contains data on all hospital stays with detailed
+information on diagnosis and treatments. @sschwarzinger_etude_2018 used a subset of
+PMSI containing hospital stays from 2008 to 2013 for 18 million unique patients
+aged 50 and up. This accounts for 75.5% of this general population in this age
+group of France on the 1st of January 2008. In order to isolate a healthy
+subpopulation on the 1st of January 2010, all individuals admitted to a hospital
+with a severe disease before that date are excluded. See Table
+\ref{tab:filters-schwarz} for the details of the subpopulations that were
+excluded. A further 
+
+## Extend of the data 
+
+Some exclusion choices merit special attention. By far the largest exclusion
+concerns those with one of 34 "serious conditions"; it eliminated 25% of the
+original population. As stated above, this is done to isolate the healthy
+population on the 1st of January 2010. See section \ref{sec:pathologies} for the
+discussion of the diseases that were included in the list. Another large chunk
+of exclusions are genetic, mental and infectious diseases. This population due
+to the fact that these disorders can be considered as a prior condition and thus
+are difficult to insure; the choice to exclude them rather than to take them
+into account in analysis was due to @schwarzinger2018-bfa's focus on studying
+long term care risk from an insurance point of view.
+
+The exclusion of these populations is significant because it makes comparing to
+the general population difficult. If it was not for this exclusion it would be
+possible to assume that all individuals not observed are in good health. Indeed,
+deaths and other serious disorders without hospital intervention are exceedingly
+rare. In our case, however, this assumption leads to underestimating mortality
+and the occurrence of other disorders. We cannot therefore give accurate
+estimates for the general population. We can, however, give biased estimates
+which can used as a bound. This will prove useful later to understand how our
+definition of good health differs from existing definitions.
+
+## Imputed deaths
+
+Table \ref{tab:pathol} mentions that certain deaths are imputed. Indeed,
+@schwarzinger2018-bfa notes that a large proportion of deaths not observed in
+the hospital, and therefore not included in the database. These deaths were then
+imputed from all information available from previous hospital stays. Note that
+much more information was used to impute deaths than the information used in the
+current work: the
+model used is a logistic regression based on over 150 explanatory variables.
+Using this approach the probability of death within the calendar year was
+estimated for all whose vital status is unknown on first of January of the next
+calendar year, if this probability is larger than a threshold, then a death
+event was added on the last hospital checkout. This approach was jugged
+acceptable as it estimated total volume of deaths similar to the total number of
+deaths observed in France. However, for 2013 this method overestimated the
+number of deaths due to the large number of individuals whose vital status is
+unknown on 1st of January 2014. For this reason when imputation is applied, the
+data is censored on 31st of December 2012. Current paper focuses on life
+expectancy in good health, therefore death is less important. Especially
+considering the fact that the vast majority of deaths are proceeded by a 
+hospital stay. Therefore, we do not apply this imputation.
+
+(Alternative version of above paragraph) Table \ref{tab:pathol} mentions that
+certain deaths are imputed. Indeed, @schwarzinger2018-bfa notes that a large
+proportion of deaths not observed in the hospital, and therefore not included in
+the database. For this reason deaths are imputed, except for 2013 where the
+model overestimated the number of deaths. Current paper focuses on life
+expectancy in good health, therefore death is less important.
+
+## Data format
+
+We now explain in detail the information available for this analysis. The
+available data are structured in two tables, one for hospital visits, one for
+individuals.
+
+For hospital visits the table contains three columns :
+
+1. an anonymous patient identifier (`id`)
+2. the date of the hospitalization (`date_event`)
+3. the disorder that caused the hospitalization,
+see section \ref{sec:pathologies} (`event`)
+
+Table \ref{tab:individu-cols} describes the information available for individual
+patients. Note that information from certain columns are at postal code level,
+that is, constant for all individuals from that postal code. Also note that 
+individual-level information is constant in time, and corresponds to the first
+information available on the individual.
+
+```{r}
+col_desc <- tribble(
+    ~col, ~precision, ~possible_values, ~descirption,
+    "id", "individual", "positive integers", "Anonymized identifier",
+    "fdr_aud_cat3", "individual", "0, 1, 2", "Alcohol consumption, grouped into three classes in increasing order",
+    "fdr_aud_all", "individual", "0, 1", "Same as `fdr_aud_cat3` but with `1' and `1' grouped into `1'",
+    "fdr_obesity_cat3", "individual", "0, 1, 2", "Obesity, grouped into three classes in increasing order",
+    "fdr_obesity_all", "individual", "0, 1", "Same as `fdr_obesity_cat3` but with `1' and `1' grouped into `1'",
+    "fdr_smoker_cat3", "individual", "0, 1, 2", "Smoking, grouped into three classes in increasing order",
+    "fdr_smoker", "individual", "0, 1", "Same as `fdr_smoker_cat3` but with `1' and `1' grouped into `1'",
+    "dep", "individual", "`01' to `95'", "Department of residence (French departments)",
+    "immigration", "postal code", "0, 1, 2, 3", "Proportion of foreign nationals, grouped into four classes by increasing order",
+    "diplome", "postal-code", "0, 1, 2, 3", "Proportion population with higher education, grouped into four classes by increasing order",
+    "region", "individual", "...", "Region of residence (a grouping of French departments)",
+    "file", "individual", "...", "",
+    "date_naissance", "individual", "any date", "Approximate date of birth",
+    "sex", "postal code", "`M' or `F'", "M:male, F:female",
+)
+
+col_desc %>%
+    kable(
+        "latex",
+        label = "individu-cols",
+        caption = c("Description of individual patient data."),
+        booktabs = TRUE
+    )
+```
+
+We breifly discuss how the information available on the indivduals may help
+inform our analysis of health. First and formost is the definition of good
+health itself, to which we dedicate Section \ref{sec:def-health}. Next, is
+sex, which has a large impact both on hazard of death and of ill health. The
+date of birth is necessairy to calculate the age which is in turn likely
+the most important determinant of health. Note that the all the dates, including
+the date of birth were anonymized by applying noise to them. Sex and age is the
+usual granularity of data collected on healthy life duration on a country level.
+Whereas the data used in this study allows much finer approach.
+
+(*À préciser*) Data alse includes three behavioral risk factors : smoking,
+alcohol consuption, and obesity. Each risk factor is mesured on a scale of 0 to
+2, 0 being absence of risk. All three indicators are the best estimation of
+this information as available from the PMSI database at the start of the
+observation period. Theese indicators are assumed to be constant in time.
+
+The department of residence of residence gives an approximate residence location
+at the start of the study. There are approximately 100 departments in
+Metropolitan France, but they vary greatly in population. The departments can
+be grouped into regions.
+
+The `immigration` and `diplome` (i.e., diploma) are postal-code variables,
+meaning they reflect the proportion of non-native residents and the level of
+education in the postal-code of residence. Although intresting, it is difficult
+to interpret these variables directly, since without other confounding variables
+about the place of residence, and the individual, it is difficult to conclude
+that it indeed the levels of education and immigration.
+
+# Whole population adjustment
+
+To allow comparaison between ERLYGH and HLY of Eurostat we ajdusted the exposure
+to approximately match the entire French population for the years 2010 to 2013.
+This section explains how exactly this adjustment is done.
+
+First we needed a source for the French population. We used INSEE age pyramid,
+available [here](https://www.insee.fr/fr/statistiques/6327226?sommaire=6327254),
+in the "Pyramides des âges" interactive tool, under "France Métropolitaine" tab.
+This gives us the population on the 1st of Janruary of each year, by sex and
+age.
+
+It is not clear how exactly this age is calculated, it could either be
+"âge atteint" or "âge révolue". We assume it is the latter, but the choice
+should not have a major impact on the results.
+
+Also all ages 99 and above are grouped into 99. This fact is also currently
+ignored and 99 is treated a the true age. Once again, this is done because this
+should not have a major impact on the result. Although this does cause a spike
+of missing ages at 99, that is left untreated as of now.
+
+Once we have a reference, we calculate the population under observation in a
+similar way. We assume all individuals are exposed form their 50th birthday to
+the 31st of December 2013 or their death, should it occur earlier. Here we
+ignore the censoring event "STATE2_PDV" because we assume all those not observed
+did not have any health-related incidents. We extend this assumption to the
+observed population after the censoring date.
+
+Having calculated the observed population on each 1st of Janurary, and armed
+with the entire population we deduce, by taking the difference, the number
+of persons missing. We adjust the exposure to match the enire population by
+creating datapoints with individuals without any incident. To be able to keep
+the same exposure rule (i.e., from 50th birtday to 31st of December, 2013)
+we add indivduals by cohort of year of birth. Then the appropriate number of
+individuals from the cohort are censored each year. When the exposure increases
+for a given cohort, we do not introduce new individuals, since we couldn't
+apply the same exposure period. 
+
+```{r}
+tab_expo_adj_example <- tar_read(comparaison_pop_pmsi_gen) %>%
+    mutate(missing = pop_insee - pop_pmsi) %>%
+    filter(sex == "M", cohort == 1960)
+
+tab_expo_adj_example2 <- tar_read(comparaison_pop_pmsi_gen) %>%
+    mutate(missing = pop_insee - pop_pmsi) %>%
+    filter(sex == "M", cohort == 1914)
+
+tab_expo_adj_example %>%
+    kable(
+        "latex",
+        label = "expo-adj",
+        caption = c("Number of persons missing from the PMSI database for the 1960 cohort."),
+        booktabs = TRUE
+    )
+```
+
+This becomes much clearer with an example. Table \ref{tab:expo-adj} gives the
+number of persons missing for the 1960 cohort (males only). Given that the
+year of birth this fixed, ages increase from 2010 to 2013. We thefore add
+`r tab_expo_adj_example$missing[which.min(tab_expo_adj_example$age)]`
+individuas in this cohort. Of these, about a thousand will be censored after one
+year, another two thousand the second, and another one thousand the last. Most
+of these individuals will not be censored.
+
+In thus doing we can exactly match the population counts of INSEE, while still
+applying the same exposure rule. This is possible for this cohort because the
+number of missing individuals is non-increasing. For the cohorts where the
+volume missing does increase with years, we simply ignore the increase, and
+apply a cumulative minimum to the missing volumes to keep the sequence
+non-increasing. This is rarely the case, and only happens for small cohorts,
+thus limiting the impact of this simplification. The reason why this happens
+is that our exposure rule does not always reflect reality, it is possible that
+an individual be truthly censored to the right or left, for example due to
+migration, i.e. individuals entering or leaving france between their 50th
+birthday and the end of 2013.
+
+We end this section with a comparaison of expsure before and after the
+simulated general population is added. This is intended as an illustration of
+the proportion of population observed, and as a check that the adjustment is
+correct.
+
+```{r}
+# # I cheat to speed up the plot: I sample from the dataset
+# sample_prop <- 0.05
+# everyone <- tar_read(evenement_with_adj) %>%
+#     filter(event == "STATE2_DECES") %>%
+#     right_join(
+#         tar_read(individu_with_adj) %>% slice_sample(prop = sample_prop),
+#         by = "id"
+#     ) %>%
+#     mutate(
+#         date_event = replace(
+#             date_event,
+#             is.na(date_event),
+#             ymd("2013-12-31")
+#         ),
+#         event = replace(
+#             event,
+#             is.na(event),
+#             "STATE2_PDV"
+#         )
+#     ) %>%
+#     mutate(
+#         date_naissance = date_naissance + days(
+#             if_else(format(date_naissance, "%d-%m") == "29-02", 1, 0)
+#         )
+#     ) %>%
+#     group_by(sex) %>%
+#     reframe(population_1jan(id, date_naissance, date_event)) %>%
+#     mutate(pop = round(pop / sample_prop))
+#
+# compar_insee <- everyone %>%
+#     rename(pop_pmsi_adj = pop) %>%
+#     full_join(
+#         tar_read(comparaison_pop_pmsi_gen),
+#         by = c("age", "year", "sex", "cohort")
+#     ) %>%
+#     pivot_longer(
+#         cols = starts_with("pop"),
+#         values_to = "pop",
+#         names_to = "method",
+#         names_prefix = "pop_"
+#     ) %>%
+#     mutate(
+#         method = case_when(
+#             method == "insee" ~ "INSEE",
+#             method == "pmsi" ~ "Without adj.",
+#             method == "pmsi_adj" ~ "With adj.",
+#         )
+#     )
+
+tar_read(compar_adj_to_insee) %>%
+    filter(pop > 0, !is.na(pop)) %>%
+    group_by(year, sex, method) %>%
+    summarize(pop = sum(pop), .groups = "drop") %>%
+    ggplot() +
+    aes(
+        x = year,
+        y = pop / 1e6,
+        group = method,
+        color = method,
+    ) +
+    geom_line() +
+    expand_limits(y = 0) +
+    facet_wrap(vars(sex)) +
+    scale_y_continuous(label = number_format()) +
+    labs(
+        y = "Population on 1st of Jan. (millions)",
+        x = "Year",
+        color = "Method"
+    )
+```
+
+# Events before the 50th birthday 
+
+We consider all individuals to be exposed from their 50th birthday until death
+or censoring, within the observation period. This is consistent with the way the
+dataset was selected. However, to anonymize reccrds, noise was added to the
+birth dates and a non-negligable proporition of the dataset, about 5%, has a
+first event before their 50th birthday.
+
+There is no obvious way to treat these cases. First choice was simply to exclude
+them. Another possibility is to move the birthday back, so that the first event
+falls after the 50th birthday. This approach also necissitates choosing for how
+long such individuals are exposed for before the event. To do this we can infer
+some information about the noise applied from the distribution of ages of first
+events before 50.
+
+Consider Figure \ref{fig:event_age_below_50_dist}. The probability of the age of
+the first event decreases as we go futher away from 50, and is 0 beyond 44.
+Morevoer, there are sharp peaks at rounded ages. The explaination for these
+peaks is not quite clear. The main conclusion from this is that it is possible
+for ages to go as far as 6 years from the true age.
+
+```{r, fig.cap = "\\label{fig:event_age_below_50_dist}Histogram of ages of first events."}
+firsts <- tar_read(data_before_norm) %>%
+    slice_sample(prop = 0.01) %>%
+    arrange(date_event, id) %>%
+    filter(!duplicated(id)) %>%
+    left_join(tar_read(individu), by = "id") %>%
+    mutate(age_event = interval(date_naissance, date_event) / years(1))
+
+firsts %>%
+    filter(age_event < 50, age_event > 43) %>%
+    ggplot() +
+    aes(x = age_event) +
+    geom_histogram(binwidth = 1 / 12)
+```
+
+
+Moreover it appers that a noise is applied both to birth dates as well as event
+dates. Assuming that these two noises have the same distribution we conclude
+that each source of noise can be as large as 3 years. We use this fact to try to
+recover ages under 50 by moving the birth date up by amount necessairy to get to
+50, plus a random duration with maximum value of $(6 - \text{number of years
+already adjusted})^{+}$. We use the $\text{Beta}(1, 2)$ distribution to generate
+the random duration before scaling it to the desired maximum length. We use the
+Beta distribution out of computation convenece and the fact that it roughly
+resembles the obsreved noise (its density is just a line with a negative slope).
+For exaple, for someone with first event at 49 years will have their birthday
+shifted backwards $1 + 5 B(1, 2)$ years, someone with with an event at 48 by $2
++ 4 B(1, 2)$, etc.
+
+This adjustment has direct, albeit small, impact on the results. Indeed these
+individuals are those with some of the earliest event times, and their exclusion
+biases the result to overestimate durations, be it in good health or life. It is
+for this reason that we had to to include randomness in our adjustment,
+otherwise we would falsely increase incidence at 50 years.
+
+# Impact of exlcusion of those under 50 on whole population adjustment
+
+I noticed that there is larger discrepency between HLY and DFLE when I don't 
+adjust birthdays. I wonder if it is due to the whole population adjustment.
+
+To check this I star by viewing the number of peaple that are added when doing
+the whole population adjustment.
+
+```{r}
+tar_read(comparaison_pop_pmsi_gen) %>%
+    mutate(missing = pop_insee - pop_pmsi) %>%
+    ggplot() +
+    aes(
+        x = age,
+        y = missing,
+        group = cohort,
+        color = cohort,
+    ) +
+    geom_line() +
+    facet_wrap(vars(sex))
+
+tar_read(comparaison_pop_pmsi_gen) %>%
+    mutate(
+        missing = pop_insee - pop_pmsi,
+        missing_per = missing / pop_insee
+    ) %>%
+    ggplot() +
+    aes(
+        x = age,
+        y = missing_per,
+        group = cohort,
+        color = cohort,
+    ) +
+    geom_line() +
+    facet_wrap(vars(sex)) +
+    scale_y_continuous(labels = percent_format())
+```
+
+There is defenetly something going on with early ages,
+up to about 65
+
+What if we do apply the adjustment ?
+
+```{r}
+comparaison_pop_pmsi_gen_with_bday_adj <- compare_pmsi_to_general_population(
+    tar_read(insee_age_pyramid),
+    tar_read(evenement),
+    # filter(id %in% tar_read(health_with_adj)$id),
+    tar_read(individu) %>%
+        # filter(id %in% tar_read(health_with_adj)$id) %>%
+        rename(
+            date_naissance = date_naissance_adju,
+            date_naissance_adju = date_naissance
+        )
+)
+
+comparaison_pop_pmsi_gen_with_bday_adj %>%
+    mutate(missing = pop_insee - pop_pmsi) %>%
+    ggplot() +
+    aes(
+        x = age,
+        y = missing,
+        group = cohort,
+        color = cohort,
+    ) +
+    geom_line() +
+    facet_wrap(vars(sex))
+
+comparaison_pop_pmsi_gen_with_bday_adj %>%
+    mutate(
+        missing = pop_insee - pop_pmsi,
+        missing_per = missing / pop_insee
+    ) %>%
+    ggplot() +
+    aes(
+        x = age,
+        y = missing_per,
+        group = cohort,
+        color = cohort,
+    ) +
+    geom_line() +
+    facet_wrap(vars(sex)) +
+    scale_y_continuous(labels = percent_format())
+```
+
+Well, the improvement is not obvious. The first 6 cohors are clearly impacted,
+but the impact appears does appear to introduce even more noise.
+
+What if we go further and calculate the DFLE with the adjuted data to compare it
+to existing ? (not executed)
+
+```{R, eval = FALSE}
+pop_outside <- generate_general_population(
+    comparaison_pop_pmsi_gen_with_bday_adj,
+    id_start = max(tar_read(individu)$id) + 1
+)
+helth_adj <- ages_patho(
+    tar_read(individu) %>%
+        rename(
+            date_naissance = date_naissance_adju,
+            date_naissance_adju = date_naissance
+        ) %>%
+        mutate(pmsi = TRUE) %>%
+        bind_rows(
+            mutate(pop_outside, pmsi = FALSE)
+        ) %>%
+        select(id, date_naissance, sex, pmsi),
+    tar_read(evenement) %>%
+        mutate(pmsi = TRUE) %>%
+        bind_rows(
+            mutate(pop_outside, pmsi = FALSE)
+        ) %>%
+        select(id, id, date_event, event) %>%
+        pathol12(tar_read(pathology)),
+    "pathol12",
+    tar_read(pathology),
+    50,
+    ymd("2010-01-01"),
+    ymd("2014-01-01"),
+    correct_same_day_exit = TRUE
+)
+
+any(helth_adj$fin_obs_age < 50)
+
+surv <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ sex,
+    data = helth_adj
+)
+
+compar_hly_adj <- bind_rows(
+    tidy_surv(surv) %>%
+        group_by(strata) %>%
+        reframe(
+            age = c(50, 65),
+            hly = surv_time(time, surv, age) - age
+        ),
+) %>%
+    mutate(
+        Method = sprintf("DFLE adj at %i", age),
+        age = NULL,
+        sex = str_extract(strata, "sex=([FM])", group = 1),
+        strata = NULL,
+        .before = everything()
+    )
+```
+
+This chunck is tacken directly from article1 :
+```{r, eval = FALSE}
+compar_hly <- bind_rows(
+    tidy_surv(tar_read(surv_health_adj)) %>%
+        group_by(strata) %>%
+        reframe(
+            age = c(50, 65),
+            hly = surv_time(time, surv, age) - age
+        ),
+) %>%
+    mutate(
+        Method = sprintf("DFLE at %i", age),
+        age = NULL,
+        sex = str_extract(strata, "sex=([FM])", group = 1),
+        strata = NULL,
+        .before = everything()
+    )
+
+hly <- tar_read(eurostat_hly) %>%
+    filter(
+        unit == "YR",
+        indic_he %in% c("HLY_50", "HLY_65"),
+        geo == "FR",
+        year %in% 2010:2013,
+        sex != "T"
+    ) %>%
+    arrange(unit) %>%
+    mutate(age = as.integer(str_extract(indic_he, "HLY_([0-9]{2})", 1))) %>%
+    group_by(sex, age) %>%
+    summarize(hly = mean(hly), .groups = "drop") %>%
+    mutate(
+        Method = sprintf("HLY at %i", age),
+        age = NULL,
+        .before = everything()
+    )
+```
+
+So the final comparaison gives :
+
+```{r, eval = FALSE}
+bind_rows(
+    compar_hly,
+    compar_hly_adj,
+    hly,
+) %>%
+    mutate(sex = if_else(sex == "F", "Women", "Men")) %>%
+    pivot_wider(
+        id_cols = Method,
+        values_from = hly,
+        names_from = sex
+    ) %>%
+    kable("pipe")
+```
+
+|Method         | Women|   Men|
+|:--------------|-----:|-----:|
+|DFLE at 50     | 21,45| 17,84|
+|DFLE at 65     | 13,84| 11,70|
+|DFLE adj at 50 | 20,19| 16,65|
+|DFLE adj at 65 | 13,84| 11,70|
+|HLY at 50      | 19,90| 18,82|
+|HLY at 65      | 10,18|  9,50|
+
+
+# Exits on the same day
+
+When an event of intrest happens on the 50th birthday or on the 1st of Janurary
+2010 the person spends 0 whole days exposed. This is the consequence of how
+durations are calculated. More troublingly these cases are exluded as they do
+not contibute any exposure time. To correct this we add a half a day, or to be
+more specific ${1/(2 \times 365.25)}^\text{th}$ of a year, to reflect the fact
+that the person was ineed exposed for a short period of time.
+
+A useful way to think about this is by considering that dates are implicitly
+timestamps at 00:00. By this logic these persons enter exposure at 00:00 and the
+event occurse some time during the day. Without such detailed information we
+assume that the event occurs at noon. The additional half a day of expsure is
+unlikely to impact anything, however the fact that true events are sometimes
+ignored is cause for this adjustment.
+
+# Time dependent covariates
+
+One possible way to handle non-proportionality in a Cox model is to allow the
+coeffcients to vary over time. Conceptually introducing time dependence is not
+hard, the hazard function simply becomes $\lambda(t) =
+\lambda_0(t)e^{\beta(t)X}$ instead of $\lambda(t) = \lambda_0(t)e^{\beta X}$.
+The more difficult part is estimating theis new functional form. We follow the
+method proposed by R package `survival`'s authors in their `timedep` vignette.
+
+First note that the likelihood only depends on the $\beta(t)X$ expression
+evaluated at event times. It is therefore sufficient to be able to evaluate this
+expression at event times. This is accomplished by splitting each obervation
+into multiple observations that are censored at each even time.  For instance an
+individual exposed from age 56 to 68, and if event times are 55, 60, 64, 70;
+then this individual is is split into three pseudo-observations exposed from 56
+to 60, from 60 to 64, and from 64 to 68. When all observations are split in this
+manner we can explicitly include time, or any function therof, as a covariate.
+This approach allow allows for time dependent covariates.
+
+As stated, this method may greatly increase the size of the dataset, and for a
+case like ours prohibitvly so. The soluation proposed in the vignette is to use
+a coarser time grid. Including all event times allow for maximum precision,
+however is not necessairy. Indeed we opt to use a grid spaced with 2 years.  We
+chose this granularity because it guarantees that it increases our dataset
+maxumum by 3 (in practise only by 2), and because it seems reasonable to assume
+that the hazard does not change by much in this period. Practice shows that the
+later statement may not necessairy be true for all variables, we may try a finer
+grid for some areas. We, still inspired by the vignette, use splines to estimate
+the time varying coefficients.
+
+# Scraps {-}
+
+## New introduction {#sec:intro}
+
+Disability-free life expectancy, and its variants are widely used to follow
+health status of a population, with variants thereof being used to assist in
+policymaking by various statistical organizations across the world
+@euro-reves_selection_2000. Such an indicator has the advantage of being able to
+combine information about both mortality and morbidity. Data on mortality comes
+from the usual sources, and can be considered extremely reliable due to how
+important it is, but also due to how unambiguous death is. Data on morbidity
+almost universally comes from crosssectional surveys.
+
+The most often method of combining morbidity incidence rates with mortality data
+is the Sullivan's method introduced by @sullivan_single_1971. For examples of
+its use see Eurostat's HLY, @cho_estimating_2022,
+@muszynska-spielauer_well-being_2022, @welsh_trends_2021,
+@jonker_small-area_2013 and many others.
+
+The use of surveys as a source of information about morbidity, and more
+specifically about health status, is dictated by necessity as this information
+is not collected elsewhere. However, the cost associated with the conducting of
+surveys limits the amount data that can be collected. Most studies are based on
+surveys with at most a few thousand responders. Notable exceptions to this are
+government surveys, for example EU-SILK for the EU or @cho_estimating_2022 for
+the United States. Another example is the UK's Hospital Episode Statistics,
+United States's 
+
+The object of interest is not incidence alone, but the life duration of the
+whole population. The data on incidence has therefore to be enriched with
+data on mortality (or vise-versa depending on your perspective). Survey data
+alone is too small to obtain reasonable mortality rates. Life tables are both
+easily accessible, and provide the only reasonable source of information on
+population mortality. The calculation of life expectancies therefore requires
+aggregating incidence rates to the same level of detail as the life tables
+used, usually age and sex, even if the underlying survey provides more
+information.
+
+This creates a bottleneck that limits the analysis applied to life expectancies.
+Indeed, most studies have are limited to comparing estimated life expectancies
+in various states. 
+
+We aim to bypass these problems by using a single source information about both
+hospitalization and data to track both morbidity and mortality. This allows us
+to pursue analysis at the individual level, without aggregating. This allows for
+finer analysis that takes into account differences between individuals, rather
+than comparing populations.
+
+We apply this approach to the French National Hospital Discharge database
+(Programme de Médicalisation des Systèmes d'Information). Data used covers all
+hospital discharges from 2010 to 2013 for adults aged 50 and older, which
+contains data on all hospital visits in France and covers over 13 million unique
+patients. Each discharge contains the main discharge diagnosis, coded using
+ICD-10, as well as some demographic information on the patient.
+
+This individual level information allows us to follow health trajectories over
+time. Instead of estimating the expected life duration in good health, we
+define good health on individual level, this allow us to calculate and
+analyze the life durations on individual level. This however requires an exact
+definition of "good health".
+
+We define Disability Free Life Years (DFLY) as the number of years lived without
+being diagnosed serious conditions. Using clinical data, and a concrete
+definition of "serious condition" we can calculate the exact DFLY duration.
+DFLY, together with covariables available provide fruitful data for analysis,
+and an interesting perspective on the health status of the population.
+
+These data come from the same source as data used by
+@schwarzinger_contribution_2018 to analyze the link between dementia and alcohol
+use disorders using similar methods.
+
+This approach seems obvious, bit it has not been previously applied. We believe
+the primary reason for this is the difficulty of collecting large amounts of
+standardized data.
+
+
+
+## The determinants of health
+
+We consider healthy life duration at 50 years of age. We focus on this quantity
+because the dataset at our disposal starts exposure at the age of 50. This age
+was chosen because most disorders occur later in life.
+
+We model this duration as a simple event that can only be right censored by
+death, or end of observation period. This is in contrast to a competitive risk
+model where we may have considered death and ill-health as two competitive
+events. However, by our definition, ill-health almost always precedes death.  We
+therefore consider death as a censoring event.
+
+Before introducing covariates, we start by presenting the survival curves for
+duration in good health if Figure \ref{fig:health-surv-curve-nocov}.
+
+We proceed with our analysis by fitting more and more complex models to the
+data. We start with Cox proportional hazards models, followed by the more
+general Aalen models. We also attempt to fit this distribution with fully
+parametric models.
+
+Variable selection is not necessary in our case as we have an abundance of data.
+One exception to this is the department of residence (of which there can be
+100), which is often excluded due to additional computational burden of such a
+high dimension covariable. Instead, we are more concerned with model
+misspecification. For this reason we estimate multiple models. Moreover, there
+will be little discussion about statistical significance in the usual sense.
+This is once again due to large amount of data available, and there is enough
+data to make even the slightest signal statistically significant. Instead, we
+focus on more qualitative comparisons between the models.
+
+The models are fit on the dataset without adjusting exposure to match the
+general population, as we did earlier, since the information on the covariates
+is not available in necessary detail. We also opt not to impute deaths because
+the main event of interest is the occurrence of disorders before death.
+
+## Cox models
+
+### Basic Cox model
+
+We start the analysis with the classic regression model for censored durations,
+Cox's proportional hazards model. In essence, if we assume that covariates
+influence the hazard function only by a multiplicative factor, then the
+coefficient can be identified without explicitly specifying the hazard function
+itself.
+
+Table \ref{tab:cox-f1-coefs} shows the coefficients' association with each
+covariate.  For example, the coefficient associated with `"sexM"`, i.e., male,
+is 0.248.  This means that the hazard function for males is multiplied by
+$e^{0.248}$, or put differently the risk of serious illness is approximately 28%
+higher for men than for women.
+
+As previously, a more relatable quality is the expected duration in good health.
+However, even with relatively few covariates as here there are about 50
+different combinations thereof, so another level of indirection is useful. Table
+\ref{tab:cox-f1-erlygh-lm} presents the coefficients of a linear regression fit
+on the expected life durations in good health. For example, the intercept
+corresponds to women without any risk factors, and each coefficient represents
+the impact on ERLYGH when going form that reference group. The fit is very good
+with an $R^2$ over 90%. All risk factors appear to have a strong negative impact
+on ERLYGH of about $-2.7$ years, with alcohol consumption being slightly
+stronger than others at $-2.8$.
+
+```{r}
+cox_f1_erlygh <- tar_read(cox_erlygh_health_formula1)
+
+cox_f1_erlygh_lm <- lm(
+    ERLYGH ~ fdr_obesity_cat3 + fdr_aud_cat3 + fdr_smoker_cat3 + sex,
+    data = cox_f1_erlygh
+)
+
+tidy(cox_f1_erlygh_lm) %>%
+    select(term, estimate) %>%
+    kable(
+        "latex",
+        label = "cox-f1-erlygh-lm",
+        caption = c("Coefficients of a linear model fit to ERLYGH"),
+        booktabs = TRUE
+    )
+```
+
+### Proportionality assumption
+
+The Cox model assumes that the underlying hazard functions are all proportional
+to the base hazard function, $\lambda(t, X) = \lambda_{0}e^{X\beta}$. But this
+assumption is made entirely for computational convenience and is unlikely to be
+true. Moreover, in the current case, with large amount of data, it is certain
+that statistically significant non-proportionality can be detected. We prefer to
+focus on the question of if these deviations from non-proportionality are
+important, i.e., do they impact our inference from the model ?.
+
+The easiest way to check for non proportionality is by examining the Schoenfeld
+residuals for any patterns over time, here done by fitting a spline to them, as
+seen in Figure \ref{fig:cox_f1_zph}. As stated earlier, with the large amount of
+data at our disposal the usual statistical test for non-proportionality
+identifies significant non-proportionality for all variables. This does not
+necessary indicate if the non proportionality reflects any important aspects of
+the data.
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f1_zph}
+#|     Residuals of the Cox model smoothed with splines.
+#|     Only the smoothing spline is plotted due to large number of data points.",
+#| fig.width = 2 * fig_width,
+#| fig.height = 2 * fig_height
+cox_f1_zph <- tar_read(cox_zph_health_formula1)
+par(mfrow = c(2, 2))
+plot(cox_f1_zph, resid = FALSE, var = 1, ylim = c(0, 1.3))
+plot(cox_f1_zph, resid = FALSE, var = 2, ylim = c(0, 1.3))
+plot(cox_f1_zph, resid = FALSE, var = 3, ylim = c(0, 1.3))
+plot(cox_f1_zph, resid = FALSE, var = 4, ylim = c(0, 1.3))
+# It is actually quite tricky to correctly plot zph :
+# * need to scale xaxis with KM
+# * smooth y
+# tibble(
+#     x = rep(cox_f1_zph$x, ncol(cox_f1_zph$y)),
+#     time = rep(cox_f1_zph$time, ncol(cox_f1_zph$y)),
+#     var = rep(colnames(cox_f1_zph$y), rep(nrow(cox_f1_zph$y), ncol(cox_f1_zph$y))),
+#     y = as.vector(cox_f1_zph$y),
+# ) %>%
+#     filter(var == var[1]) %>%
+#     ggplot() +
+#     aes(x = time, y = y) +
+#     geom_smooth() +
+#     geom_hline(yintercept = 0) +
+#     facet_wrap(vars(var))
+```
+
+The largest offenders of non-proportionality appear to be the risk factor of
+smoking and the sex. We therefor fit another model to same data, this time
+allowing coefficient of these variables to vary over time. After fitting time
+dependent effects to these two variables, alcohol also started showing important
+deviations from proportionality. In the end we fit time dependent coefficients
+for the three variables mentioned above.
+
+```{r, fig.cap = "\\label{fig:cox_f1_tt1_effects}Estimated time dependent linear effect."}
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+    mutate(
+        var = case_when(
+            fdr_obesity_cat3 != "0" ~ "fdr_obesity_cat3",
+            fdr_aud_cat3 != "0" ~ "fdr_aud_cat3",
+            fdr_smoker_cat3 != "0" ~ "fdr_smoker_cat3",
+            sex != "F" ~ "sex"
+        ),
+        value = case_when(
+            fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+            fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+            fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+            sex != "F" ~ sex
+        )
+    ) %>%
+    ggplot() +
+    aes(
+        x = 50 + 2 * tgroup,
+        y = fit,
+        ymax = fit_up,
+        ymin = fit_dn,
+        xmin = 50 + 2 * tgroup,
+        xmax = 50 + 2 * (tgroup + 1),
+        group = value,
+        color = value
+    ) +
+    geom_step() +
+    # Fake step ribbon
+    geom_rect(aes(color = NULL), fill = "gray", alpha = 0.6) +
+    facet_wrap(vars(var)) +
+    labs(x = "Age", y = "Impact on linear predictor", color = "X value")
+```
+
+```{R}
+#| fig.cap = "\\label{fig:cox_f1_tt1_zph}
+#|     Residuals of the Cox model with time dependent covariables, smoothed
+#|     with splines.",
+#| fig.width = 2 * fig_width,
+#| fig.height = 3 * fig_height
+
+test_ph_f1_tt1 <- tar_read(cox_zph_health_formula1_tt1)
+par(mfrow = c(3, 2))
+plot(test_ph_f1_tt1, resid = FALSE, var = 1, ylim = c(0, 1.3))
+plot(test_ph_f1_tt1, resid = FALSE, var = 2, ylim = c(0, 1.3))
+plot(test_ph_f1_tt1, resid = FALSE, var = 3, ylim = c(0, 1.3))
+plot(test_ph_f1_tt1, resid = FALSE, var = 4, ylim = c(0, 1.3))
+plot(test_ph_f1_tt1, resid = FALSE, var = 5, ylim = c(0, 1.3))
+plot(test_ph_f1_tt1, resid = FALSE, var = 6, ylim = c(0, 1.3))
+```
+
+## Parametric 
+
+### Cumulative hazard function
+
+We start our investigation of the appropriate parametric distribution for
+life duration by plotting the cumulative hazard function.
+
+```{r}
+cumhaz <- tar_read(haz_health)
+tidy_surv(cumhaz) %>%
+    mutate(
+        haz = cumhaz,
+        lower = lower,
+        upper = upper,
+    ) %>%
+    ggplot() +
+    aes(
+        x = time,
+        y = haz,
+        group = strata,
+        linetype = strata
+    ) +
+    geom_line()
+geom_smooth()
+```
+
+## Forest
+
+```{r, eval = FALSE}
+hlth <- tar_read(health) %>% slice_sample(prop = 0.01)
+anyNA(hlth)
+hlth %>%
+    filter(if_any(c(debut_obs_date, fin_obs_age, patho_obs, starts_with("fdr"), sex), is.na))
+
+forest_f1 <- ranger(
+    Surv(debut_obs_age, fin_obs_age, status) ~
+        fdr_obesity_cat3 + fdr_aud_cat3 + fdr_smoker_cat3 + sex,
+    data = tar_read(health) %>%
+        slice_sample(prop = 0.01) %>%
+        filter(fin_obs_age > debut_obs_age) %>%
+        mutate(status = if_else(patho_obs, 1L, 0L))
+)
+
+# Average the survival models
+death_times <- r_fit$unique.death.times
+surv_prob <- data.frame(r_fit$survival)
+avg_prob <- sapply(surv_prob, mean)
+
+# Plot the survival models for each patient
+plot(r_fit$unique.death.times, r_fit$survival[1, ],
+    type = "l",
+    ylim = c(0, 1),
+    col = "red",
+    xlab = "Days",
+    ylab = "survival",
+    main = "Patient Survival Curves"
+)
+
+#
+cols <- colors()
+for (n in sample(c(2:dim(vet)[1]), 20)) {
+    lines(r_fit$unique.death.times, r_fit$survival[n, ], type = "l", col = cols[n])
+}
+lines(death_times, avg_prob, lwd = 2)
+legend(500, 0.7, legend = c("Average = black"))
+```
+
+# Packages
+
+```{r}
+sessionInfo()
+```

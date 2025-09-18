@@ -1,0 +1,67 @@
+---
+title: "Exploration fonctionalités de targets"
+author: "Oleksandr Sorochynskyi"
+date: "`r today()`"
+bibliography: biblio.bib
+output:
+    pdf_document: 
+        number_sections: true
+        keep_tex: no
+        latex_engine: lualatex
+        toc: true
+        includes:
+            in_header: "papreambule.tex"
+---
+
+# Are packages imported ???
+
+```{r}
+tibble()
+```
+
+# Are user-defiend functions imported ?
+
+```{r}
+load_benchmark
+```
+
+# What is my WD ? 
+
+```{r}
+print(getwd())
+```
+
+# Are options kept ?
+
+Was set to :
+```{R}
+list(
+    digits = 4,
+    scipen = 5,
+    OutDec = ","
+)
+```
+
+```{r}
+c("digits", "scipen", "OutDec") %>%
+    purrr::set_names() %>%
+    map(getOption)
+```
+
+
+# Are knit options kept ?
+
+Was set to :
+
+```{r}
+list(
+    echo = FALSE,
+    fig.width = 16 / 2.54,
+    fig.height = 8 / 2.54
+)
+```
+
+```{R}
+knitr::opts_chunk$get(c("echo", "fig.width", "fig.height"))
+```
+

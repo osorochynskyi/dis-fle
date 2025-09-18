@@ -1,0 +1,192 @@
+name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
+.Random.seed|object|0aca24be105435a8|||||||||||||||
+aalen_health_formula1|stem|af42a14582b29a84|8bd1b5c4219ed858|247077f95851dd04|-2063898483||t19598.4527541477s||2.2250738585072e-308|rds|local|vector|||19.274|NA produit par débordement dentier par le haut|la taille de vecteur ne peut être NA
+aalen_health_ind_eve_formula1|stem|6a92c05f3a625117|aac3b6485bd922e4|c3a60084d0c04336|42824667||t19597.5531752467s|8a5b896023aa9fda|35866|rds|local|vector|||0.109||
+aalen_health_ind_eve_n001_formula1|stem|dd1f159879e7c68d|aac3b6485bd922e4|8cace8906e2bb3bf|-1202264035||t19597.3073718036s|f83eefde0ea976e3|417027|rds|local|vector|||1.851|Stop time must be  start time, NA created|
+aalen_models|object|5ee8828ce0a62d8f|||||||||||||||
+aalen_tidy_health_formula1|stem|f8fe8ab583abf5ab|e0736d2845776a60|333ba59860012978|-1868910267||t19598.6672444085s|465b20bbe5948a78|3452864|rds|local|vector|||0.849||
+aalen_tidy_health_ind_eve_formula1|stem|ce2b4fb9ed6cede2|91773f66cda410d9|b5733306d3040808|1535153150||t19597.5535391824s|016134e22271268c|24857|rds|local|vector|||0.092||
+aalen_tidy_health_ind_eve_n001_formula1|stem|f321d2ad3b456529|2da0ab76991231a9|bba26feed17e1ab9|-1793383254||t19597.3171430685s|3f776c9d989a57e6|580213|rds|local|vector|||0.143||
+add_first_pathol|function|78fed5d6f00f2d31|||||||||||||||
+ages_patho|function|1628738359d02903|||||||||||||||
+ages_patho_cr|function|5ad8c33762136015|||||||||||||||
+ages_patho_long|function|b5163b4cf1f78d34|||||||||||||||
+article1|stem|15d6cccaea981047|907714679915797a|ddbbc7aff08f16ae|1121054756|reports/article1.pdf*reports/article1.Rmd|t19657.6227275869s|29264c6371e59725|4628141|file|local|vector|||45.474|Removed 14 rows containing missing values geom_line.|
+article1_arxiv|stem|1a2fd7ef0ed68d81|fdd32cc32d95c73d|c8ad9bffb5368122|-1500504673|reports/article1_arxiv.pdf*reports/article1_arxiv.Rmd*reports/article1_arxiv_files|t19879.1939291815s|5b05da53acf02f78|5121513|file|local|vector|||30.875|The file article1_arxiv.log is not encoded in UTF8. These lines contain invalid UTF8 characters 769, 775, 776. Package Fancyhdr Warning \headheight is too small 14.0pt . Make it at least 22.48878pt.. We now make it that large for the rest of the document.. This may cause the page layout to be inconsistent, however.|
+article1_risks|stem|5552fa0708731681|d060860ab516a9dc|c8ad9bffb5368122|376834542|reports/article1_risks.pdf*reports/article1_risks.Rmd*reports/article1_risks_files|t20078.6249007761s|2bc78741bb575e15|5019969|file|local|vector|||33.238|NAs introduced by coercion 1,3 is not an integer. NAs introduced by coercion 4,5 is not an integer. NAs introduced by coercion 1,3 is not an integer. NAs introduced by coercion 4,5 is not an integer. NAs introduced by coercion 1,3 is not an integer. NAs introduced by coercion 4,5 is not an integer. LaTeX Warning Command \footnotemark  has changed..                Check if current package is valid.. Package Fancyhdr Warning \headheight is too small 12.0pt . Make it at least 20.0pt.. We now make it that large for the rest of the document.. This may cause the page layout to be inconsistent, however.|
+article1_short|stem|2b975c95b4dd7b3e|88e1a154e031177b|d24199bc6b408b20|548131154|reports/article1_0521faf.pdf*reports/article1_short.Rmd|t19765.4466259112s|a012d7b01aa006ec|5411537|file|local|vector|||36.378|LaTeX Warning Reference tabfiltersschwarz on page 4 undefined on input line.  332.. LaTeX Warning Reference tabpathol on page 5 undefined on input line 341.. LaTeX Warning Reference tabindividucols on page 5 undefined on input line 3. 67.. LaTeX Warning Reference tabpathol on page 5 undefined on input line 404.. LaTeX Warning Reference tabfiltersschwarz on page 9 undefined on input line.  622.. LaTeX Warning Reference tabwholepopadjcalc on page 9 undefined on input l. ine 654.. LaTeX Warning Reference tabhlycomparaison on page 11 undefined on input lin. e 821.. LaTeX Warning Reference tabcoxf3tt1effectsfdrinter on page 15 undefined.  on input line 1016.. LaTeX Warning Reference tabcoxf3coefsfdrinter on page 16 undefined on in. put line 1069.. LaTeX Warning Reference tabfiltersschwarz on page 20 undefined on input lin. e 1260.. LaTeX Warning There were undefined references.|
+article1_sup|stem|4f69b8b1b1a98865|daa8ddaa04394453|921fb74c7ff64a1d|-852093115|reports/article1_sup.pdf*reports/article1_sup.Rmd|t19597.6742042024s|320fae1a3d84ad65|432428|file|local|vector|||27.071|LaTeX Warning Reference tabfiltersschwarz on page 1 undefined on input line.  162.. LaTeX Warning Reference secpathologies on page 1 undefined on input line 171. .. LaTeX Warning Reference tabpathol on page 2 undefined on input line 192.. LaTeX Warning Reference tabpathol on page 2 undefined on input line 212.. LaTeX Warning Reference secpathologies on page 2 undefined on input line 237. .. LaTeX Warning Reference secdefhealth on page 2 undefined on input line 276.. LaTeX Warning Reference fighealthsurvcurvenocov on page 8 undefined on in. put line 569.. LaTeX Warning Reference tabcoxf1coefs on page 8 undefined on input line 60. 3.. LaTeX Warning There were undefined references.|
+article1_sup_targets|object|f9a79dbffb760de3|||||||||||||||
+article1_targets|object|248f2ecfbf4c65af|||||||||||||||
+aux_data_import|object|f8fd884a2005f433|||||||||||||||
+benchmark_files|stem|648daeae7453085b|6ba015f746de3d05|88559740b2c6d4c9|1833589387|data/benchmarks/02_Data_For_R/Benchmark_DATE50_F101.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F103.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F104.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F24.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F27.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F28.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F32.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F44.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F52.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F53.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F75.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F76.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_F84.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M101.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M103.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M104.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M24.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M27.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M28.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M32.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M44.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M52.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M53.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M75.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M76.RData*data/benchmarks/02_Data_For_R/Benchmark_DATE50_M84.RData|t19460.3784744892s|560f428ed2bbdb47|958558174|file|local|vector|||0.002||
+benchmark_treatment|object|07ffe9bdc57da933|||||||||||||||
+birthdates_beyod_50|function|6d6805db9bdc9350|||||||||||||||
+birthdates_beyond_50|function|6f8604e20948d6b6|||||||||||||||
+birthdays_shifted|stem|89c96d38db18d62a|34ce544212948dcb|4a1a4bb2862c706c|-2074932916||t19598.4415080191s|6e2dd28ede669ba6|73045371|rds|local|vector|||57.263||
+censor_evenements|function|23689e4d7bdbbb19|||||||||||||||
+check_health_volume|stem|3fe873ceaa51890e|5fdce1a808d5d3be|f8a2f11a4877edc0|1645300169||t19598.4502916902s|a1c456b03adbfbf8|44|rds|local|vector|||39.298||
+classify_events|function|b185d83a36e77da8|||||||||||||||
+clean_benchmark|function|a297ed297a2e5b5d|||||||||||||||
+codes_departement|stem|c9dd1d9e45fb97b8|28e0a46c4bd4cd2d|7e59424c16da3bfa|-145288104||t19403.3349237075s|f49160043a6f143d|1914|rds|local|vector|||0.224||
+codes_departement_file|stem|93ac0edd476c511e|a12ca11ac067394b|ef46db3751d8e999|-565164741|data/tab_dep_sexe.csv|t17507.9216435185s|29f4debd4f7a7f25|11208|file|local|vector|||0.001||
+compar_adj_to_insee|stem|928b7be65d6b090b|4414dc9787ebf140|f9d155f5b52cb727|-464722453||t19678.2394319413s|a3a75dd09f33e410|5563|rds|local|vector|||184.411||
+comparaison_pop_pmsi_gen|stem|5aa4b3b7c1d1edb9|4889524ae2c0b656|b73f20b11f1b0424|1776358182||t19866.1860952947s|f4e7cd5f9f0c8904|3545|rds|local|vector|||341.908||
+compare_pmsi_to_general_population|function|c3794b51d4d9f38c|||||||||||||||
+correction_dem_sev_type_2|stem|6af65a726641019b|4836b64ed5e81628|6a63c83a33a61bc6|-246330039||t19403.3352543561s|e04aff67bf52feb1|611892|rds|local|vector|||0.044||
+correction_dem_sev_type_2_file|stem|534723d2fc980d1f|9b7ae062c901cec9|ef46db3751d8e999|-1019765187|data/DATE50_IMP0812_DEM_SEV_20190918.csv|t17792.6623148148s|00b551fb9f833855|4839934|file|local|vector|||0||
+cox_erlygh_health_formula1|stem|9abdb95a6f191272|218148e08f62709e|2c088bf0d3a0648c|2012830120||t19678.2336017931s|87121a3725e916bd|674|rds|local|vector|||48.826|1m22mThere were 54 warnings in summarize.The first warning was1m22m36mℹ39m In argument ERLYGH  surv_timetime, surv, 50.36mℹ39m In group 1 fdr_obesity_cat3  0, fdr_aud_cat3  0, fdr_smoker_cat3   0, sex  F.Caused by warning in surv_time33m39m Survival curve improper, likely due to longest observation being censored.Consider correcting the curve, or setting the maxtime option.1m22m36mℹ39m Run dplyrlast_dplyr_warnings to see the 53 remaining warnings.|
+cox_erlygh_health_ind_eve_formula1|stem|1e17ed977cdef959|748792ad64b2a52d|2e7911231629477b|-380448296||t19597.553508025s|290ac7a76b917d76|684|rds|local|vector|||1.492||
+cox_erlygh_health_ind_eve_formula2|stem|633fa00933a4cf96|aed140bea04ccd79|9a291354a2942d02|108596260||t19597.5534906638s|8b3e193e37f2afa6|1410699|rds|local|vector|||16.034||
+cox_erlygh_health_ind_eve_n100_formula1|stem|ea2b282ad196539a|164a324f9a645e35|aeab75819361d65c|-896977141||t19597.3171409389s|8497b8ad2f7afb34|680|rds|local|vector|||3.661|Stop time must be  start time, NA created|
+cox_erlygh_health_ind_eve_n100_formula2|stem|7bece262193671ec|7f87ff8ee4cae380|1d5e6f15cf159df9|-657468520||t19597.3177403842s|8142e9bfaaadde04|1401514|rds|local|vector|||30.131|Stop time must be  start time, NA created|
+cox_health_f1_tt1_all_fdr_tt|stem|1594ca6a60a8e680|25c7a73766c52ea6|7120a2a3087e15f2|760297095||t19661.4599526384s|d854cb59333a8536|1377|rds|local|vector|||44.853||
+cox_health_f1_tt1_concordance_test|stem|afff3ac64ca2c03e|9e48260262d7e3e0|b0585eaafd032a7b|-360816394||t19661.4664431574s|ee83415304933fbd|343|rds|local|vector|||143.086||
+cox_health_f1_tt1_inter_tt|stem|e3d5f97b0dd92461|6195257137262e65|2455183949f35d0d|2130729789||t19680.2498361866s|ad7cbc0ca91c5ec2|22265|rds|local|vector|||44.03||
+cox_health_formula1|stem|ab75da07637224d8|ac509e02f5bc88b1|7c461cacdf344bd5|-1874556382||t19674.4121654195s|ecb83c6a39e80c5f|373921170|rds|local|vector|||2211.77||
+cox_health_formula1_tt1|stem|d8064a6e9564b8df|851c25c557e109b3|7834b9ee6fed3978|784738213||t19661.4594228228s|21d391851bfee159|446451904|rds|local|vector|||6799.805||
+cox_health_formula1_tt2|stem|f1967df5d7a72ca1|5938f8014a1577b9|812068dc1f4a5b09|120379507||t19598.2119467463s|26c3e2d500c2d607|37861322|rds|local|vector|||730.892||
+cox_health_formula3|stem|c9706beba3374096|6f29f65b1cd789dd|53d13afc50d7af83|483205941||t19526.2381405848s|a0cdeb7a83ca634e|391|rds|local|vector|||0.001||
+cox_health_ind_eve_formula1|stem|bfdba3c6973cbb92|268edc66d8d31cf6|2520dcee94bcb9c7|-1355571542||t19597.5530787187s|79e3bfbd10e71471|3724203|rds|local|vector|||0.724||
+cox_health_ind_eve_formula1_tt1|stem|48e6f1f8ee749650|21d4c4bf31f0a944|f8aabd273766171a|-377863518||t19597.5531738578s|09ce80b22ae354f7|4811161|rds|local|vector|||7.234||
+cox_health_ind_eve_formula1_tt2|stem|cea2757dffc7cbdb|8f11738b5f792b0e|1606b7fb9a5db585|-3707076||t19597.5532940432s|df250244564938dd|4811282|rds|local|vector|||7.244||
+cox_health_ind_eve_formula2|stem|f21074c1a6cd869d|1ace1aa0f9889887|0599b3344644da31|-1630732835||t19597.5530577002s|ec3c6e01300dadb7|4273299|rds|local|vector|||32.26||
+cox_health_ind_eve_formula3_tt1|stem|5a853af27a3d21f7|5afa738906e61f65|e8cea858ae312b14|-1817174712||t19597.5541024241s|5b3d9df309de3586|3040409|rds|local|vector|||48.057||
+cox_health_ind_eve_n010_formula2|stem|0cfd8eb4ec040089|9422327c498c67c1|3ab09c6117ce9137|-1609145198||t19597.3169504756s|52df916fd0aef96b|22804234|rds|local|vector|||36.289||
+cox_health_ind_eve_n050_formula2|stem|0f3904860355db8b|e4191597c655d14b|62cdada58c8b5bb2|-1981104203||t19597.3164313544s|92e86f5330c7180e|32252760|rds|local|vector|||182.202|Stop time must be  start time, NA created|
+cox_health_ind_eve_n050_formula3_tt1|stem|fbcbcd540313ff73|5afa738906e61f65|83cd1008369fba83|-1917392557||t19537.3126883128s|7340318e7eb47d13|294871736|rds|local|vector|||5284.716||
+cox_health_ind_eve_n100_formula1|stem|4ef82ea01c883afc|268edc66d8d31cf6|728af6fe13417b7c|34031466||t19597.3073498591s|e6b362f6c2270038|38190028|rds|local|vector|||8.486|Stop time must be  start time, NA created|
+cox_health_ind_eve_n100_formula1_tt1|stem|07f3d02e2b537853|21d4c4bf31f0a944|1f55beb13e23903e|1651155823||t19597.3085963887s|49e34336b3fc7b98|50502111|rds|local|vector|||95.35|Stop time must be  start time, NA created. Stop time must be  start time, NA created|
+cox_health_ind_eve_n100_formula1_tt2|stem|694e082d6b32173c|8f11738b5f792b0e|ef4fdc1d658d971c|1967638825||t19597.3098157424s|a3c27494f76ae2db|50502205|rds|local|vector|||94.581|Stop time must be  start time, NA created. Stop time must be  start time, NA created|
+cox_health_ind_eve_n100_formula2|stem|129c824ca3d3ce29|2f602c06f3b6c04b|62cdada58c8b5bb2|1404889812||t19597.3141677398s|a99e7c15031a1043|43802629|rds|local|vector|||367.468|Stop time must be  start time, NA created|
+cox_health_ind_eve_n100_formula3_tt1|stem|24e0425edb41a45a|5afa738906e61f65|64fa85d0429eb1d8|1116023728||t19597.3234815042s|3393a60bd5ee5881|28059982|rds|local|vector|||490.495||
+cox_health_ind_eve_profiles_surv|stem|9830119ae72613b7|870a055a29b90b7b|9f20661b869930ef|-909972404||t19597.5542709892s|94b38ba677eb7df1|5506394|rds|local|vector|||6.811||
+cox_health_profiles_surv|stem|210cbd797bca6a8a|6a64d77b0e26a344|53abf74c4589b6d8|-98941334||t19661.4694655693s|4c3d818ef4bdbc50|23423534|rds|local|vector|||222.785||
+cox_models|object|eca3d9eff40be3cb|||||||||||||||
+cox_tidy_health_formula1|stem|e6ecae36b47d6dd5|3eb9e2fb01951c2d|bb5ed7f8279b219e|-2030753494||t19678.233036607s|31a617d175b664ab|6519|rds|local|vector|||0.023||
+cox_tidy_health_formula1_tt1|stem|480605b0a0d142e4|4ed62df40ead6ee1|953df89eb845aa4e|23604293||t19661.46946631s|8c23df906524a047|9456|rds|local|vector|||0.034||
+cox_tidy_health_formula3_tt1|stem||8d11546e0a663887|9b8b77b0b7f6b682|-1927706177||t19597.5869841608s||0|rds|local|vector|||0.003||objet cox_health_formula3_tt1 introuvable
+cox_tidy_health_ind_eve_formula1|stem|b2f23260069c14e1|316ade655eb89fb8|c795475483634aef|949176295||t19597.5535121917s|a0669c72be07cb49|610|rds|local|vector|||0.015||
+cox_tidy_health_ind_eve_formula1_tt1|stem|461d6b405bab8735|13b2d8e839d65613|b13c9642a1255eea|449875638||t19597.5535214046s|e6420496fecb67d8|4703|rds|local|vector|||0.474||
+cox_tidy_health_ind_eve_formula2|stem|9131c3de88aac336|918968d238294605|052e2d6578eca81d|-1711797577||t19597.5533017284s|bee5c4df8924055c|6522|rds|local|vector|||0.017||
+cox_tidy_health_ind_eve_formula3|stem|81facc1ca7bebb2e|56e452227f95d826|d0f9c8466bd33e76|-1406750956||t19597.5541837205s|e4e230956e4ce2f5|8723|rds|local|vector|||0.015||
+cox_tidy_health_ind_eve_formula3_tt1|stem|15857793efbeaaa0|af24da6a7d1d53ee|46e9597131a22349|1741249887||t19597.5542747855s|000190bb2979fc05|6689|rds|local|vector|||0.318||
+cox_tidy_health_ind_eve_n050_formula3|stem|defe5388792afbca|e764b0c99cb7ca1e|845fd75be465c6f3|722102537||t19597.3238340511s|ec18c3f73705731f|8724|rds|local|vector|||0.016||
+cox_tidy_health_ind_eve_n050_formula3_tt1|stem|b942a42166ededab|dc6910d604010107|44fd1e9fb919d329|1861840284||t19597.3238596067s|013a234c119f56d7|6680|rds|local|vector|||2.198||
+cox_tidy_health_ind_eve_n100_formula1|stem|73413067b62328c8|d7c715db1c96d157|77439f4adc6e1350|-401251538||t19597.3170984851s|de6a964251a69fd5|578|rds|local|vector|||0.015||
+cox_tidy_health_ind_eve_n100_formula1_tt1|stem|e7428ab25cec44c7|a1e8a3ec81a9cb39|d2aa0dcb67c82390|1354885219||t19597.317188763s|08e102b272d84998|4691|rds|local|vector|||3.939|1m22mThere was 1 warning in mutate.1m22m36mℹ39m In argument as_tibble....Caused by warning in Surv33m39m Stop time must be  start time, NA created|
+cox_tidy_health_ind_eve_n100_formula2|stem|fa2cbcffba1e242c|717d968d0a869573|efbc80d7b6750796|-992338760||t19597.317388393s|f2cdae39e879a1af|6502|rds|local|vector|||0.014||
+cox_tidy_tt_health_formula1_tt1|stem|c73741a9c5093d28|df7d0ff34a6b3e1b|30596a35cd8659f5|2095183716||t19661.4608662972s|47dbccd91c90d9a9|6765|rds|local|vector|||78.925||
+cox_zph_health_formula1|stem|e978270089a0e511|fa73a76645475a7f|e5a0645823dcd550|1772128273||t19678.2372667064s|1caf66fcce22454b|216886142|rds|local|vector|||304.358||
+cox_zph_health_formula1_tt1|stem|c09f56bc814a1db7|4ef1561d4cc7abd0|1816ab76ba5947f2|-1671689872||t19678.2543944642s|e2e34f9f079acd45|282318650|rds|local|vector|||1147.929||
+cox_zph_health_ind_eve_formula1|stem|1795a16d6692a75f|0e90e367a8402499|4905f966c7469745|307007058||t19597.5535119602s|3c92d180671fdc17|1076447|rds|local|vector|||0.236||
+cox_zph_health_ind_eve_formula1_tt1|stem|2fe749a8d297e1eb|95915366a44aed44|f3d5f09ba3f503c7|45994959||t19597.553538025s|05fa7daef5ebcff2|1495989|rds|local|vector|||1.31||
+cox_zph_health_ind_eve_n100_formula1|stem|2c2f25059de13904|dbfc4ae9dc5a11a6|b173c2317ebc080c|1601516792||t19597.3170982073s|7e85fd93e26753e7|5272798|rds|local|vector|||2.177|Stop time must be  start time, NA created|
+cox_zph_health_ind_eve_n100_formula1_tt1|stem|e57ef7295b602c7a|6a3d7ccfcbef5c1b|cc9a55ab293c5383|45223905||t19597.3173880689s|3b1f544c1f5c9a7a|7505182|rds|local|vector|||16.587|Stop time must be  start time, NA created|
+data_before_norm|stem|d8d4676f49ea84ad|86d7c4d9abf67110|5ffccb35131dd77b|-842793254||t19598.2539345421s|d7499c2c0b7cd167|1410813889|fst_tbl|local|vector|||9.756||
+data_before_norm_before_sample|stem|d8d4676f49ea84ad|5e682452aee8185f|0b5f307577e8bea8|866632442||t19594.606841855s|d7499c2c0b7cd167|1410813889|fst_tbl|local|vector|||342.882||
+data_exploration|stem|e03c3c73b1d7d4e3|56e2b02f2532821d|c963bc5f145c31a2|1462855137|reports/data_exploration.pdf*reports/data_exploration.Rmd|t19765.4459414194s|479a903640be12f0|339693|file|local|vector|||25.797||
+data_files|stem|32f3ab6a1a26b72d|b98f2d94c1467329|a3dad144c40657ed|31038078|data/benchmarks/02_Data_For_R/DATE50_F.csv*data/benchmarks/02_Data_For_R/DATE50_M.csv|t19460.3806493531s|7214254ee04c175b|2619230755|file|local|vector|||0.002||
+data_preparation|object|6e96377c9ebcd25c|||||||||||||||
+data_sanity_check|stem|3fe873ceaa51890e|e7cee81f00ee6a83|11bd4b8b9c851cf7|-153903705||t19598.4415901952s|a1c456b03adbfbf8|44|rds|local|vector|||4.39||
+datasets|object|1eb1bc8d77111ded|||||||||||||||
+date_hopital|stem|019c6fe2907863ec|1be2de96958a940c|d675d28edd487edf|-1151691107||t19403.3355240324s|86a35e6e62793967|60468361|rds|local|vector|||0.883||
+date_hopital_file|stem|7a4b0f214745dae7|9793dfb7693a09b8|ef46db3751d8e999|703426829|data/ID_Date0_HOPITAL.csv|t17800.5625694444s|3e751b64bfa6f388|271948922|file|local|vector|||0||
+death_cause|function|0be116ebe0892bef|||||||||||||||
+default_discrete_palettes|object|e204e3aef74972b7|||||||||||||||
+eurostat_hly|stem|9947c52405f9478a|0cc4cf51cb575610|821c313246fc2b6f|1048226509||t19493.7897421753s|87cc4187e7c99416|32822|rds|local|vector|||0.226||
+eurostat_hly_file|stem|e988d8bf892b5b69|f949c84ee4e52679|ef46db3751d8e999|-1796455082||t19493.7609642627s|36500b95d6893aee|74|rds|local|vector|||0.002||
+evenement|stem|c8c86017ac8e2674|311c755d2b8e2ed9|c3a470d51a632d18|1079985441||t19598.4365756504s|c5cb55499de27c19|403011296|fst_tbl|local|vector|||0.379||
+evenement_imput|stem|5ff6f8e1def2b426|25460615f45a73bd|48bdd4d13120ad5d|1013146516||t19598.4407472309s|e60848060ed75328|341405103|fst_tbl|local|vector|||310.421||
+evenement_with_adj|stem|cdb9c90a7421612a|57a12a67fc14af3c|ed8d6c4dadae4b2b|-1148057062||t19866.1875749731s|a17dd356e7bec9f8|475159190|fst_tbl|local|vector|||7.406||
+evenement_with_adj_imput|stem|94c0659425591762|eee00fb18f5347ea|3956df32503186d0|387951120||t19866.1882069186s|0d569cf7dfaaabbc|438202900|fst_tbl|local|vector|||25.776||
+fig_cox_f3_profile_surv_curves|stem|34f87f1bbeb02806|71407372c74e6d31|7348f6a1ee8e6795|2106623124|figures/cox_f3_profile_surv_curves.pdf|t19587.660198323s|65bb76eafe352382|2159637|file|local|vector|||7.096||
+fig_height|object|d26e18da601fa1a5|||||||||||||||
+fig_width|object|819f4e745e2a3653|||||||||||||||
+figures_and_tables|object|9866dc19403f40f1|||||||||||||||
+gen_scale_wes_fun|function|63f3c106d8362268|||||||||||||||
+generate_general_population|function|d4faeacc3eab0846|||||||||||||||
+ggsave_pdf|function|ca5fc4c66ae330fc|||||||||||||||
+ggsave_tikz|function|0455d77a51f6c06f|||||||||||||||
+GIT_COMMIT|object|f4704d6dd8eca838|||||||||||||||
+haz_health|stem|ac948dad57939f90|604380d7df539515|63a7f108b61b1159|-712210951||t19598.4498282635s|5f969dace08cb589|3783531|rds|local|vector|||17.871||
+health|stem|ebc5f3f7fc8d0ed4|9f567b23c3ef256a|5d05ca31cf5cc608|-649396682||t19598.442709271s|d2cbf5b156f38792|608868772|fst_tbl|local|vector|||59.998||
+health_datasets|object|edbc77d32584efed|||||||||||||||
+health_demographic_statistics_table|stem|3370d0740e89ef9a|86657ca7d0f6f0dd|3c10818d260e181f|1150514380||t19598.664615469s|5e13296ebd45660c|1302|rds|local|vector|||16.253||
+health_eveimp|stem|dc1e5ef78bd1ff83|fef7b3078fa4834f|29f4e0bf1e5fe9fd|2130142668||t19598.445028719s|06c8bb13ce0c7111|526293846|fst_tbl|local|vector|||47.514||
+health_eveimp_indiimp|stem|09f2a17c633d1b47|d9294573e6f09534|0aef416798308f91|424032086||t19598.4493469665s|62973a2309b2dcc9|497776291|fst_tbl|local|vector|||57.851||
+health_eveimp_with_adj|stem|f199f67ef1a53d2e|4df8f2023fbbc724|6cf6d1f5be35450e|158728691||t19866.1939058634s|a27a677ed50fb057|552701954|fst_tbl|local|vector|||84.973||
+health_indiimp|stem|6bf02fb91728648d|65ea4d2cb2795661|e9630dd5f36508e8|811867791||t19598.4486549284s|6a2ad7c565dc54c3|575976464|fst_tbl|local|vector|||68.278||
+health_risk_factors_cor|stem|36911c5451e6a290|7784f3ce7eb69747|762ca8133f239567|523489799||t19629.2067414478s|e03af3a90f8bd741|969|rds|local|vector|||5.715||
+health_tt1|stem|dc7920db8fad402c|abb37ee86f0e6d72|4b4b754818a3cbd9|1085160622||t19598.665704267s|c9a1d5c43c81c638|177666728|rds|local|vector|||27.198||
+health_with_adj|stem|c7b962aed902d036|358ffd869246172c|addb0816bd7e4e15|-27881491||t19866.1928948432s|efe04e243bef68db|613833318|fst_tbl|local|vector|||113.134||
+imputation_fdr|stem|fd547856fbfa76e0|566aaaf440c62ff7|98a6ebb32f18d7de|2038491903||t19403.3353477358s|85ca33f4fcb3b3b1|34867244|rds|local|vector|||0.846||
+imputation_fdr_file|stem|eb34bdbcbdf1cafa|1086e6c65d4c30de|ef46db3751d8e999|-458316769|data/ID_IMPUT0812_FDR_20190918.csv|t17792.6590740741s|758ae8712b3d0828|179756452|file|local|vector|||0||
+individu|stem|a93cbaa4ce2887b0|08838cb33e0cf5c7|4f86c6268c89758f|-1508072926||t19598.4417856585s|524d6a07516a25f6|365409957|fst_tbl|local|vector|||15.122||
+individu_imput|stem|a922deef8c57cd2f|dcd0d3c7a1ca5655|4f86c6268c89758f|1364898802||t19598.4419897329s|8acd3e09e1e918b9|324629844|fst_tbl|local|vector|||15.959||
+individu_with_adj|stem|cb109d1d8d4eb274|209b6fcd482d556d|8f003a9b199725c7|-47986182||t19866.1877410382s|fd5adf8ed995eaa2|211835313|fst_tbl|local|vector|||9.381||
+insee_age_pyramid|stem|e662fa4b15a5d914|93e47512ea94eb1f|3205e2d493243f67|1224855836||t19598.2535808842s|96655e4da8146c09|87998|rds|local|vector|||0.177||
+insee_age_pyramid_file|stem|6c21c35a51bccd4d|16c67c686e7f40cf|ef46db3751d8e999|1151591714|data/donnees_pyramide_act.csv|t19492.3267964775s|f615ece6c89d8495|427505|file|local|vector|||0.001||
+life|stem|00f57ffa4a137d77|7a537ea3c8c179e0|dc7b1b7e0d752552|-1941842929||t19598.4461836282s|f0f3229320441622|589505531|fst_tbl|local|vector|||61.014||
+life_datasets|object|8cf3c578d8a1f8dc|||||||||||||||
+life_eveimp|stem|54238f27012a792b|3ab46d858b7f96c6|6b7bb92d68374381|2110467718||t19598.4444434867s|d1735cd44c4afbf6|511745169|fst_tbl|local|vector|||42.434||
+life_eveimp_indiimp|stem|60f70cea438a4d72|bf48d95d4658af90|dc5b3fa4355097a1|-174447293||t19598.4468184903s|045cfe647f3056df|483099423|fst_tbl|local|vector|||52.977||
+life_eveimp_with_adj|stem|29c60376f49cab03|7f68ea2f0061cc08|f66f97c7adeeefec|1031203349||t19866.1964092472s|dd431a1e02228948|539867608|fst_tbl|local|vector|||206.747||
+life_indiimp|stem|eb1afed13ccff8a7|107436114ba4d681|e364e7a50d652e9f|78324159||t19598.4478395567s|cb971c7af54864af|556443786|fst_tbl|local|vector|||60.729||
+life_with_adj|stem|0bc21629c71e4aff|b8e6947ceffa23bb|e5e538fbc4a5ae39|-1526851431||t19866.1915561373s|1432d7e0810cf97c|601124502|fst_tbl|local|vector|||280.095||
+load_benchmark|function|80c45c7aa0b55d51|||||||||||||||
+load_csv|function|4deea36a5d39af5f|||||||||||||||
+model_summaries|object|54b30d3b999dfccb|||||||||||||||
+my_as_latex|function|838306d4d4131c71|||||||||||||||
+my_predict_cox|function|d8f84e6fcad56101|||||||||||||||
+normalize_individu|function|c875a5263045414f|||||||||||||||
+osummary|function|328ee9a08f5df5ee|||||||||||||||
+overview|function|944564d3ae87712b|||||||||||||||
+overview.character|function|dfad550d76393f47|||||||||||||||
+overview.data.frame|function|7669eab261cc458b|||||||||||||||
+overview.Date|function|1cec2d9175bdcf3d|||||||||||||||
+overview.factor|function|dfad550d76393f47|||||||||||||||
+overview.logical|function|1cec2d9175bdcf3d|||||||||||||||
+overview.numeric|function|1cec2d9175bdcf3d|||||||||||||||
+overview2|function|2565a67eeb1525b7|||||||||||||||
+pathol12|function|feafa2752fffe553|||||||||||||||
+pathologies_desc|stem|ab7430237c89bdd8|935de908094157b9|f55c839f2fb9cae0|691914203||t19597.1982445591s|bdc13c2d69aecb64|4866|rds|local|vector|||0.188||
+pathologies_file|stem|beee4722d17ac082|17467df8c94bf27c|ef46db3751d8e999|1027681200|data/Patho.csv|t19597.1845768535s|c50861f2dee1fae0|27953|file|local|vector|||0.001||
+pathology|stem|508a3f9caf58e691|0e6871232a340c28|981620d09a0f2ace|-1236651373||t19598.4415393155s|4e887651b135e169|5445|rds|local|vector|||1.186||
+pop_outside_pmsi|stem|4010c2e6b4d3a237|be7e31872bb46bc7|c02d340c0475c387|-1125929662||t19866.187405621s|e3197a605948eb6c|85051909|fst_tbl|local|vector|||111.045||
+POP_SAMPLE_PROP|object|a2a52dfe4e065e93|||||||||||||||
+population_1jan|function|c1bc1cd5f61cbf8b|||||||||||||||
+raw_benchmarks|stem|a55c30108310ec81|698cdf2c54533cba|44e94b172dee1c7e|-2054152629||t19475.536644542s|0aa258856dd2b4de|1841578593|fst_tbl|local|vector|||107.383||
+raw_data|stem|590210d8c4e973b3|4a86dc30e32b5132|4ed140cf801ce407|-979620141||t19475.5030174095s|f89d0dd13fb668f0|1612337527|fst_tbl|local|vector|||54.744||
+read_eurostat_hly_data|function|15884c493cf4f3d2|||||||||||||||
+replication|stem|7b7f8d4250f104c9|d635fac397396189|14d67104221c41b2|456335313|reports/replication.pdf*reports/replication.Rmd|t19765.4461854013s|31a01829a7393b05|281716|file|local|vector|||17.14||
+reports|object|64c59e35f757ba61|||||||||||||||
+required|object|2145762d7182151f|||||||||||||||
+risks_cover|stem|e73940f4b3d98e21|a3d997b08d2eab32|b775311c8918bd5e|2085136669|reports/risks_cover.pdf*reports/risks_cover.Rmd|t19893.6050759292s||76340|file|local|vector|||29.06||LaTeX failed to compile risks_cover.tex. See httpsyihui.orgtinytexrdebugging for debugging tips. See risks_cover.log for more info.
+scale_wes_colors|function|44663698afc2a4c5|||||||||||||||
+set_names|function|49d37fbf17473ae2|||||||||||||||
+surv_curves|object|82f9b3234e24c363|||||||||||||||
+surv_health|stem|1691c55da4e1c807|ad1c274b294b8608|63a7f108b61b1159|-1627093256||t19598.4496182632s|234b1a615ce4a9ce|3783513|rds|local|vector|||22.875||
+surv_health_adj|stem|8642e8b5a387ed2e|55cb473f9c43863c|6ede309ad8262351|-702478176||t19866.1976149437s|a9b86564e1dda96e|3770565|rds|local|vector|||99.34||
+surv_life|stem|198df459a6a29cc7|c28baaf5453e6bb1|a69c1b358d0ebd05|-2015019105||t19598.6672311677s|6c027872989d7ab8|3587633|rds|local|vector|||14.06||
+surv_life_adj|stem|70f2688243e72f7d|b658a5745557460f|449d5b843f42fa70|1211917144||t19866.1984080469s|ed7c692d1f74c2b2|3597666|rds|local|vector|||67.542||
+surv_time|function|8555dc15fc506e09|||||||||||||||
+switch2|function|69c8641f90ca1bf9|||||||||||||||
+targets|object|22fcc4c562a435bf|||||||||||||||
+targets2main|function|00139191a1eaeaea|||||||||||||||
+test_id|stem|0afd85b022498d6e|fb1a97beaf04f9f2|a1afc42f71308838|593224226||t19621.1959870612s|9a488f6f651c98b4|13817018|rds|local|vector|||1.486||
+test_rmd|stem|6b71b91fbc5e6550|3fc3135eb528aea0|4745aa592080ea1d|-1870671362|reports/test.pdf*reports/test.Rmd|t19765.4454218816s|23deb41bad849aa8|29140|file|local|vector|||3.988||
+test_train|object|d489880578057cef|||||||||||||||
+tests|object|e93061cf03df32d7|||||||||||||||
+tfilter|function|9ac6b3a0f13907d1|||||||||||||||
+thesis|stem|4552c40a98403d56|4d228c8ab6a11fb3|e22309c4dd084c63|-2055002559|reports/thesis.html*reports/thesis.Rmd|t20252.5188310358s|06c8ee89e7b33a14|4403383|file|local|vector|||243.865|The function xfunisFALSE will be deprecated in the future. Please consider using baseisFALSEx or identicalx, FALSE instead.|
+tidy_aalen|function|2c56360243876089|||||||||||||||
+tidy_cox_health_f1_tt1_risk_group_surv_test|stem|dea74081233967bf|23b9722173414caf|adb63a18725e469c|-285852579||t19661.4647868123s|ae9684d9f6aa32f7|9414449|rds|local|vector|||337.492||
+tidy_health_tt|function|4ceeea5efcdbc32e|||||||||||||||
+tidy_surv|function|a8407ce63bed4aca|||||||||||||||
+tidy_surv_cumhaz|function|819fa11b0c164f5d|||||||||||||||
+tidy_surv_exper|function|c133fa3ca8dd9437|||||||||||||||
+to_clipboard|function|97a9d612a1562ec1|||||||||||||||
+train_id|stem|59e9a2c1ce4d7661|7d6214100871cb62|52e37f479d7669e6|-1746269905||t19601.3694569786s|8b26420ff28317ca|27959340|rds|local|vector|||0.652||
+tt1_times|stem|9cf9acf4380a9399|3b0d60a0f3993b79|d94febecef105179|384558117||t19537.2027738279s|1254f8a9a0ffbd1f|107|rds|local|vector|||0.002||
+tt2_times|stem|70e84cd55da6d0a6|cd56119ba8043cc7|d3d3273c4ded8b78|-1659873678||t19598.6672319548s|6e2ad1e2d4a7cab8|275|rds|local|vector|||0.033||

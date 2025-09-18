@@ -1,0 +1,524 @@
+---
+title: Estimating Disease-Free Life Expectancy based on Clinical Data from the French Hospital Discharge Database 
+output: pdf_document
+---
+
+
+```{r setup, include = FALSE}
+# Pretty much all settings are loaded except for knit options
+source("R/options_visual.R")
+options(OutDec = ".")
+# The risks page width is too narrow for default sizes
+fig_width <- 0.9 * fig_width
+fig_height <- 0.9 * fig_height
+# Most plots don't need full width
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.width = fig_width * 0.667,
+  fig.height = fig_height * 0.667
+)
+
+ggplot2::theme_set(ggplot2::theme_minimal(10))
+```
+
+# Cover story
+
+
+Current health assessments often rely on expensive surveys, limiting their
+scope. This article explores using clinical data, which, due to its sheer size
+and objective measures, provides an unparalleled view of the population's
+health. We use data from the French National Hospital Discharge database to
+estimate the Disease-Free Life Expectancy (Dis-FLE) indicator. By analyzing the
+hospital trajectories of patients discharged from hospitals in France from
+2010-2013, we provide a more comprehensive understanding of public
+health. These data reveal insights into age-dependent risks related to sex,
+alcohol abuse, tobacco consumption, obesity, and geographic location.
+
+# Title proposition
+
+Estimating Disease-Free Life Expectancy based on Clinical Data from the French Hospital Discharge Database
+
+Estimating Dis-FLE based on Clinical Data from the French Hospital Discharge Database
+Estimating Disease-Free Life Expectancy based on Clinical Data from the PMSI Database
+
+Estimating Dis-FLE based on Clinical Data from the PMSI Database
+Calculating health indicators from the French Hospital Discharge Database
+Using French Hospital Discharge Database to estimate Dis-FLE
+Using French Hospital Discharge Database to calculate health indicators
+
+
+# Dis-FLE
+
+```{r, fig.cap = "\\label{fig:health-adj-surv-curve-nocov}Survival curves of being without disease for the general population aged 50 and up, by sex."}
+tidy_surv(tar_read(surv_health_adj)) %>%
+  ggplot() +
+  aes(
+    x = time,
+    y = surv,
+    ymax = 1.001 * upper,
+    ymin = 0.999 * lower,
+    color = str_sub(strata, 5, 5),
+    group = str_sub(strata, 5, 5)
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_step() +
+  scale_y_continuous(labels = percent_format()) +
+  coord_cartesian(xlim = c(50, 100)) +
+  labs(x = "Age", y = "Probability of being in
+  good health", color = "Sex")
+```
+
+```{r}
+#| fig.cap = "\\label{fig:health-adj-expect-curve-nocov}
+#|     Conditional Dis-FLE adjusted for the whole French population, aged 50 and up, as a function of age and sex."
+tidy_surv(tar_read(surv_health_adj)) %>%
+  group_by(sex = str_sub(strata, 5, 5)) %>%
+  reframe(
+    ages = seq(50, 100, length.out = 50),
+    expect = surv_time(time, surv, x = ages, maxtime = 100) - ages,
+    expect_up = surv_time(time, upper, x = ages, maxtime = 100) - ages,
+    expect_dn = surv_time(time, lower, x = ages, maxtime = 100) - ages,
+  ) %>%
+  filter(ages < 100) %>%
+  ggplot() +
+  aes(
+    x = ages,
+    y = expect,
+    ymax = expect_up,
+    ymin = expect_dn,
+    group = sex,
+    color = sex
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_line(size = 2) +
+  expand_limits(y = 0) +
+  theme_classic(24) +
+  labs(y = "Dis-FLE", x = "Age", color = "Sex")
+
+ggsave("dis_fle_sex.svg", height = 8, width = 10)
+```
+
+
+
+```{r}
+compar_hly <- tidy_surv(tar_read(surv_health_adj)) %>%
+  group_by(strata) %>%
+  reframe(
+    age = c(50, 65),
+    hly = surv_time(time, surv, age, maxtime = 100) - age
+  ) %>%
+  mutate(
+    Method = "Dis-FLE",
+    age = age,
+    sex = str_extract(strata, "sex=([FM])", group = 1),
+    strata = NULL,
+    .before = everything()
+  )
+
+hly <- tar_read(eurostat_hly) %>%
+  filter(
+    unit == "YR",
+    indic_he %in% c("HLY_50", "HLY_65"),
+    geo == "FR",
+    year %in% 2010:2013,
+    sex != "T"
+  ) %>%
+  arrange(unit) %>%
+  mutate(age = as.integer(str_extract(indic_he, "HLY_([0-9]{2})", 1))) %>%
+  group_by(sex, age) %>%
+  summarize(hly = mean(hly), .groups = "drop") %>%
+  mutate(
+    Method = "HLY",
+    age = age,
+    .before = everything()
+  )
+
+bind_rows(
+  compar_hly,
+  hly
+) %>%
+  mutate(
+    sex = if_else(sex == "F", "Women", "Men"),
+    hly = number(hly, 0.1),
+  ) %>%
+  pivot_wider(
+    id_cols = c(age, sex),
+    values_from = hly,
+    names_from = Method
+  ) %>%
+  arrange(age, sex) %>%
+  group_by(age) %>%
+  rename(
+    Sex = sex,
+    Age = age
+  ) %>%
+  kable(
+    "latex",
+    label = "hly-comparaison",
+    caption = c("
+            Comparison of Eurostat's HLY at 50 and 65 for France to analogous
+            Dis-FLE calculated with the proposed health definition and method.
+            HLY value corresponds to the average of HLY from 2010 to 2013.
+            The entire Dis-FLE curve can be seen in Figure \\ref{fig:health-adj-expect-curve-nocov}.
+        "),
+    booktabs = TRUE
+  )
+```
+
+### Risk profiles
+
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f3_profile_surv_curves}
+#|    Survival curves for selected risk profiles, by sex,
+#|    with 95% confidence intervals.",
+#| fig.width = fig_width
+tar_read(cox_health_profiles_surv) %>%
+  filter(time < 50) %>%
+  ggplot() +
+  aes(
+    x = time + 50,
+    y = surv,
+    ymax = upper,
+    ymin = lower,
+    group = id,
+    color = profile
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_line() +
+  scale_color_viridis_d() +
+  facet_wrap(vars(sex)) +
+  labs(
+    x = "Age",
+    y = "Probability of being in
+          good health",
+    color = "Risk profile"
+  )
+```
+
+```{r, warning = FALSE}
+#| fig.cap = "\\label{fig:cox_f3_profile_surv_time_curves}
+#|    Conditional residual expectation for selected risk profiles, by sex,
+#|     with 95% confidence intervals.",
+#| fig.width = fig_width
+tar_read(cox_health_profiles_surv) %>%
+  group_by(id, sex, profile) %>%
+  reframe(
+    ages = seq(50, 100, length.out = 50),
+    expect = surv_time(
+      time + 50,
+      surv,
+      x = ages,
+      maxtime = 100
+    ) - ages,
+    expect_up = surv_time(
+      time + 50,
+      upper,
+      x = ages,
+      maxtime = 100
+    ) - ages,
+    expect_dn = surv_time(
+      time + 50,
+      lower,
+      x = ages,
+      maxtime = 100
+    ) - ages
+  ) %>%
+  ggplot() +
+  aes(
+    x = ages,
+    y = expect,
+    ymin = expect_dn,
+    ymax = expect_up,
+    group = id,
+    color = profile
+  ) +
+  geom_line() +
+  geom_ribbon(color = NA, alpha = 0.4) +
+  expand_limits(y = 0) +
+  scale_color_viridis_d() +
+  facet_wrap(vars(sex)) +
+  labs(
+    y = "Dis-FLE",
+    x = "Age",
+    color = "Risk profile"
+  )
+```
+
+### Sex
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f1_tt1_effects_sex}
+#|    Estimated age-dependent hazard ratio for sex.
+#|    Values above 1 increase hazard for males.
+#|    Gray areas are 95% pointwise confidence intervals."
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+  filter(sex != "F") %>%
+  mutate(
+    value = case_when(
+      fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+      fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+      fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+      sex != "F" ~ sex
+    )
+  ) %>%
+  ggplot() +
+  aes(
+    x = 50 + 2 * tgroup,
+    y = fit,
+    ymax = fit_up,
+    ymin = fit_dn,
+    xmin = 50 + 2 * tgroup,
+    xmax = 50 + 2 * (tgroup + 1),
+  ) +
+  # Fake step ribbon
+  geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+  geom_step() +
+  labs(x = "Age", y = "Hazard ratios for males (sex)")
+```
+
+### Behavioral risk factors
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f1_tt1_effects_fdr}
+#|    Estimated age-dependent hazard ratios for behavioral risk factors.
+#|    Values above 1 increase hazard.
+#|    Gray areas are 95% pointwise confidence intervals.",
+#| fig.width = fig_width
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+  filter(sex == "F") %>%
+  mutate(
+    var = case_when(
+      fdr_obesity_cat3 != "0" ~ "Obesity",
+      fdr_aud_cat3 != "0" ~ "Alcohol",
+      fdr_smoker_cat3 != "0" ~ "Smoking",
+      sex != "F" ~ "Sex"
+    ),
+    value = case_when(
+      fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+      fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+      fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+      sex != "F" ~ sex
+    )
+  ) %>%
+  ggplot() +
+  aes(
+    x = 50 + 2 * tgroup,
+    y = fit,
+    ymax = fit_up,
+    ymin = fit_dn,
+    xmin = 50 + 2 * tgroup,
+    xmax = 50 + 2 * (tgroup + 1),
+    group = value,
+    color = value
+  ) +
+  # Fake step ribbon
+  geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+  geom_step() +
+  facet_wrap(vars(var)) +
+  labs(x = "Age", y = "Hazard ratio", color = "Category")
+```
+
+
+### Geographical
+
+```{r}
+#| fig.cap = "\\label{fig:cox-f3-coefs-dep}
+#|    Estimated hazard ratios for departments of residence.
+#|    Values binned.
+#|    Values above 1 increase hazard relative to residents of department 78.
+#|    Non-significant values (p-value > 0.05) are greyed out.",
+#| fig.width = fig_width,
+#| fig.height = 1.1 * fig_height
+
+dep2reg <- tribble(
+  ~num_dep, ~region_name,
+  "01", "Auvergne-Rhône-Alpes",
+  "02", "Hauts-de-France",
+  "03", "Auvergne-Rhône-Alpes",
+  "04", "Provence-Alpes-Côte d'Azur",
+  "05", "Provence-Alpes-Côte d'Azur",
+  "06", "Provence-Alpes-Côte d'Azur",
+  "07", "Auvergne-Rhône-Alpes",
+  "08", "Grand Est",
+  "09", "Occitanie",
+  "10", "Grand Est",
+  "11", "Occitanie",
+  "12", "Occitanie",
+  "13", "Provence-Alpes-Côte d'Azur",
+  "14", "Normandie",
+  "15", "Auvergne-Rhône-Alpes",
+  "16", "Nouvelle-Aquitaine",
+  "17", "Nouvelle-Aquitaine",
+  "18", "Centre-Val de Loire",
+  "19", "Nouvelle-Aquitaine",
+  "21", "Bourgogne-Franche-Comté",
+  "22", "Bretagne",
+  "23", "Nouvelle-Aquitaine",
+  "24", "Nouvelle-Aquitaine",
+  "25", "Bourgogne-Franche-Comté",
+  "26", "Auvergne-Rhône-Alpes",
+  "27", "Normandie",
+  "28", "Centre-Val de Loire",
+  "29", "Bretagne",
+  "2A", "Corse",
+  "2B", "Corse",
+  "30", "Occitanie",
+  "31", "Occitanie",
+  "32", "Occitanie",
+  "33", "Nouvelle-Aquitaine",
+  "34", "Occitanie",
+  "35", "Bretagne",
+  "36", "Centre-Val de Loire",
+  "37", "Centre-Val de Loire",
+  "38", "Auvergne-Rhône-Alpes",
+  "39", "Bourgogne-Franche-Comté",
+  "40", "Nouvelle-Aquitaine",
+  "41", "Centre-Val de Loire",
+  "42", "Auvergne-Rhône-Alpes",
+  "43", "Auvergne-Rhône-Alpes",
+  "44", "Pays de la Loire",
+  "45", "Centre-Val de Loire",
+  "46", "Occitanie",
+  "47", "Nouvelle-Aquitaine",
+  "48", "Occitanie",
+  "49", "Pays de la Loire",
+  "50", "Normandie",
+  "51", "Grand Est",
+  "52", "Grand Est",
+  "53", "Pays de la Loire",
+  "54", "Grand Est",
+  "55", "Grand Est",
+  "56", "Bretagne",
+  "57", "Grand Est",
+  "58", "Bourgogne-Franche-Comté",
+  "59", "Hauts-de-France",
+  "60", "Hauts-de-France",
+  "61", "Normandie",
+  "62", "Hauts-de-France",
+  "63", "Auvergne-Rhône-Alpes",
+  "64", "Nouvelle-Aquitaine",
+  "65", "Occitanie",
+  "66", "Occitanie",
+  "67", "Grand Est",
+  "68", "Grand Est",
+  "69", "Auvergne-Rhône-Alpes",
+  "70", "Bourgogne-Franche-Comté",
+  "71", "Bourgogne-Franche-Comté",
+  "72", "Pays de la Loire",
+  "73", "Auvergne-Rhône-Alpes",
+  "74", "Auvergne-Rhône-Alpes",
+  "75", "Ile-de-France",
+  "76", "Normandie",
+  "77", "Ile-de-France",
+  "78", "Ile-de-France",
+  "79", "Nouvelle-Aquitaine",
+  "80", "Hauts-de-France",
+  "81", "Occitanie",
+  "82", "Occitanie",
+  "83", "Provence-Alpes-Côte d'Azur",
+  "84", "Provence-Alpes-Côte d'Azur",
+  "85", "Pays de la Loire",
+  "86", "Nouvelle-Aquitaine",
+  "87", "Nouvelle-Aquitaine",
+  "88", "Grand Est",
+  "89", "Bourgogne-Franche-Comté",
+  "90", "Bourgogne-Franche-Comté",
+  "91", "Ile-de-France",
+  "92", "Ile-de-France",
+  "93", "Ile-de-France",
+  "94", "Ile-de-France",
+  "95", "Ile-de-France",
+  "971", "Guadeloupe",
+  "972", "Martinique",
+  "973", "Guyane",
+  "974", "La Réunion",
+  "976", "Mayotte"
+)
+
+map_coefs <- tar_read(cox_tidy_health_formula1_tt1) %>%
+  select(term, estimate, std.error, p.value) %>%
+  filter(str_detect(term, "^dep")) %>%
+  add_row(term = "dep01", estimate = 1, std.error = 0) %>%
+  mutate(
+    dep = str_extract(term, "dep([AB0-9]{2})", group = 1),
+    estimate = estimate / estimate[dep == "78"],
+    # estimate = replace(estimate, p.value > 0.05, NA)
+  )
+
+fmap <- st_read("data/contour-des-departements.geojson", quiet = TRUE)
+
+dep_hr <- fmap %>%
+  left_join(dep2reg, by = c(code = "num_dep")) %>%
+  left_join(map_coefs, by = c("code" = "dep")) %>%
+  group_by(region_name) %>%
+  summarize(estimate = mean(estimate)) %>%
+  ggplot() +
+  aes(fill = estimate) %>%
+  geom_sf() +
+  scale_fill_viridis_b(option = "viridis", direction = -1) +
+  labs(fill = "Hazard ratio") +
+  theme_void()
+```
+
+```{r}
+dis_fle_reg <- tidy_surv(tar_read(surv_health_adj)) %>%
+  filter(!duplicated(cbind(floor(time * 100), strata))) %>%
+  left_join(
+    map_coefs %>%
+      left_join(dep2reg, by = c(dep = "num_dep")) %>%
+      group_by(region_name) %>%
+      summarize(estimate = mean(estimate)),
+    by = character(0)
+  ) %>%
+  group_by(region_name, strata) %>%
+  mutate(
+    surv2 = exp(-1 * cumhaz * estimate),
+    expect = surv_time(time, surv2, x = time, maxtime = 100) - time,
+  ) %>%
+  ungroup()
+
+dis_fle_reg_plots <- dis_fle_reg %>%
+  group_by(region_name) %>%
+  summarize(
+    plot = list(
+      ggplot(pick(everything())) +
+        aes(
+          x = time,
+          y = expect,
+          group = strata,
+          color = strata
+        ) +
+        geom_smooth(se = FALSE) +
+        guides(color = "none") +
+        theme_void()
+    )
+  )
+
+library(cowplot)
+
+dis_fle_reg_plots <- fmap %>%
+  left_join(dep2reg, by = c(code = "num_dep")) %>%
+  group_by(region_name) %>%
+  summarize() %>%
+  st_centroid() %>%
+  left_join(dis_fle_reg_plots, by = "region_name")
+
+cum_dep_hr <- dep_hr
+coord <- st_coordinates(dis_fle_reg_plots)
+for (i in seq_len(nrow(dis_fle_reg_plots))) {
+  cum_dep_hr <- cum_dep_hr +
+    draw_plot(
+      dis_fle_reg_plots$plot[[i]],
+      x = coord[i, "X"],
+      y = coord[i, "Y"],
+      width = 1.7,
+      hjust = 0.5,
+      vjust = 0.5
+    )
+}
+cum_dep_hr +
+  guides(fill = "none")
+
+ggsave("map_dis_fle_reg.svg", height = 8, width = 10)
+```

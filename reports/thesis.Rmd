@@ -1,0 +1,1082 @@
+---
+title: Elements for the thesis
+author: "Oleksandr SOROCHYNSKYI"
+date: "26 April 2024"
+output: html_document
+---
+
+```{r, eval = FALSE}
+source("_targets.R")
+tar_make(thesis)
+```
+
+```{r, setup, echo = FALSE, warning = FALSE, message = FALSE}
+# Disable colred output as it is not rendered correctly in output
+options(crayon.enabled = FALSE, scipen = 1, digits = 2)
+
+knitr::opts_chunk$set(
+    align = "center",
+    echo = FALSE
+)
+
+textwidth <- 14.749
+# That's the actual text height (approximately)
+textheight <- 22
+
+fig_width <- 8
+fig_height <- fig_width / 1.6
+```
+
+# Data description
+
+## List oof pathologies
+```{r}
+pathol_desc <- read_csv(
+    "reports/pathol_desc_fr.csv",
+    col_types = cols(
+        event = col_character(),
+        description2 = col_character()
+    )
+)
+
+tar_read(pathology) %>%
+    filter(
+        n != 0,
+        pathol %in% c("1", "2"),
+        event != "STATE2_PDV",
+        !is.na(description)
+    ) %>%
+    left_join(pathol_desc, by = "event") %>%
+    # group_by(event = fct_lump_n(event, 30, n, other_level = "Other")) %>%
+    # summarize(n = sum(n), .groups = "drop") %>%
+    arrange(desc(n)) %>%
+    mutate(n = number(n)) %>%
+    select(
+        `Description de l'évenement` = description2,
+        `Nb. observé` = n
+    ) %>%
+    gt() %>%
+    my_as_latex(env = "tabular") %>%
+    as.character() %>%
+    str_replace("\\{lr\\}", "{p{0.7\\\\textwidth}r}") %>%
+    writeLines("tables/ph-desc-pathol.tex")
+```
+
+## Statistiques desctripives
+
+```{r}
+tar_read(health_demographic_statistics_table) %>%
+    pivot_wider(
+        id_cols = c(var, statistic),
+        names_from = sex,
+        values_from = c(value, value2, value3)
+    ) %>%
+    mutate(
+        statistic = str_replace(statistic, "\\s+", " "),
+        statistic = str_replace(statistic, "Category", "Catégorie"),
+        statistic = str_replace(statistic, "Median", "Médiane"),
+        statistic = if_else(
+            str_detect(statistic, "^(Cat|Quar)"),
+            paste(statistic, "(% pop.)"),
+            statistic
+        ),
+        var = case_when(
+            var == "fdr_smoker_cat3" ~ "Tabac",
+            var == "fdr_aud_cat3" ~ "Alcool",
+            var == "fdr_obesity_cat3" ~ "Obesité",
+            var == "immigration" ~ "Immigration",
+            var == "diplome" ~ "Éducation",
+            var == "exposure" ~ "Exposition (années)",
+            var == "Age at start of exposure" ~ "Âge au début de l'exposition",
+            var == "Number of indiduals" ~ "Nombre d'individus",
+            TRUE ~ var,
+        )
+    ) %>%
+    gt(
+        rowname_col = "statistic",
+        groupname_col = "var"
+    ) %>%
+    fmt(
+        columns = starts_with("value"),
+        rows = statistic == "Médiane (IQR)",
+        fns = number_format(0.1)
+    ) %>%
+    fmt(
+        columns = starts_with("value_"),
+        rows = statistic == "n",
+        fns = number_format(1)
+    ) %>%
+    fmt(
+        columns = starts_with("value_"),
+        rows = str_detect(statistic, "^(Catégorie|Quartile)"),
+        fns = number_format(1)
+    ) %>%
+    fmt(
+        columns = starts_with("value2"),
+        rows = str_detect(statistic, "^(Catégorie|Quartile)"),
+        fns = percent_format(0.1, suffix = "\\,\\%")
+    ) %>%
+    cols_merge(
+        rows = statistic != "n",
+        columns = c(value_F, value2_F, value3_F),
+        pattern = "<<{1}>> (<<{2}>><<—{3}>>)"
+    ) %>%
+    cols_merge(
+        rows = statistic != "n",
+        columns = c(value_M, value2_M, value3_M),
+        pattern = "<<{1}>> (<<{2}>><<—{3}>>)"
+    ) %>%
+    cols_merge(
+        rows = statistic != "n",
+        columns = c(value_B, value2_B, value3_B),
+        pattern = "<<{1}>> (<<{2}>><<—{3}>>)"
+    ) %>%
+    cols_merge(
+        rows = statistic == "n",
+        columns = c(value_F, value2_F, value3_F),
+        pattern = "<<{1}>>"
+    ) %>%
+    cols_merge(
+        rows = statistic == "n",
+        columns = c(value_M, value2_M, value3_M),
+        pattern = "<<{1}>>"
+    ) %>%
+    cols_merge(
+        rows = statistic == "n",
+        columns = c(value_B, value2_B, value3_B),
+        pattern = "<<{1}>>"
+    ) %>%
+    cols_align(
+        align = "auto",
+        columns = starts_with("value")
+    ) %>%
+    cols_width(
+        statistic ~ px(150),
+    ) %>%
+    tab_stub_indent(
+        rows = everything(),
+        indent = 5
+    ) %>%
+    opt_align_table_header(align = "left") %>%
+    tab_spanner(
+        label = "Sexe",
+        columns = starts_with("value")
+    ) %>%
+    cols_move(value_B, after = value_M) %>%
+    cols_label(
+        value_F = "Femmes",
+        value_M = "Hommes",
+        value_B = "Toute la population",
+    ) %>%
+    as_latex() %>%
+    writeLines("tables/ph-desc-stats.tex")
+```
+## Tableau correlations
+
+```{r}
+tar_read(health_risk_factors_cor) %>%
+    arrange(x, y) %>%
+    mutate(
+        cor = number(cor, 0.01),
+        pvalue = number(pvalue, 0.001),
+        sumr = sprintf("%s", cor)
+    ) %>%
+    pivot_wider(
+        id_cols = x,
+        names_from = y,
+        values_from = sumr
+    ) %>%
+    mutate(across(everything(), \(x) replace_na(x, ""))) %>%
+    gt(rowname_col = "x") %>%
+    as_latex() %>%
+    writeLines("tables/ph-desc-cor.tex")
+```
+
+# Résultats
+
+## Dis-FLE and comparison to Eurostat's HLY
+
+
+```{r}
+# Courbes de survie sans maladie
+tidy_surv(tar_read(surv_health_adj)) %>%
+    # Reduce the number of points to make output plot lighter
+    group_by(strata, floor(time * 20)) %>%
+    slice_head(n = 1) %>%
+    ungroup() %>%
+    ggplot() +
+    aes(
+        x = time,
+        y = surv,
+        ymax = 1.001 * upper,
+        ymin = 0.999 * lower,
+        color = str_sub(strata, 5, 5),
+        group = str_sub(strata, 5, 5)
+    ) +
+    geom_ribbon(alpha = 0.4, color = NA) +
+    geom_line() +
+    scale_y_continuous(labels = scales::percent_format(suffix = "\\,\\%")) +
+    coord_cartesian(xlim = c(50, 100)) +
+    labs(x = "Âge", y = "$\\hat{S}(t)$", color = "Sexe")
+
+# Since I disable sanizing I need to ecape % myself
+ggsave_tikz("figures/ph-health-adj-surv-curve-nocov", sanitize = FALSE, height = fig_height, width = fig_width, hadjust = 1.05, vadjust = 0)
+```
+
+
+```{r}
+# Dis-FLE conditionnel
+dis_fle_plot <- tidy_surv(tar_read(surv_health_adj)) %>%
+    group_by(sex = str_sub(strata, 5, 5)) %>%
+    reframe(
+        ages = seq(50, 100, length.out = 50),
+        expect = surv_time(time, surv, x = ages, maxtime = 100) - ages,
+        expect_up = surv_time(time, upper, x = ages, maxtime = 100) - ages,
+        expect_dn = surv_time(time, lower, x = ages, maxtime = 100) - ages
+    ) %>%
+    filter(ages < 100) %>%
+    ggplot() +
+    aes(
+        x = ages,
+        y = expect,
+        ymax = expect_up,
+        ymin = expect_dn,
+        group = sex,
+        color = sex
+    ) +
+    geom_ribbon(alpha = 0.4, color = NA) +
+    geom_line() +
+    expand_limits(y = 0) +
+    labs(y = "Dis-FLE", x = "Âge", color = "Sexe")
+
+dis_fle_plot
+ggsave_tikz("figures/ph-health-adj-expect-curve-nocov", height = fig_height, width = fig_width, hadjust = 1, vadjust = 0)
+
+
+# Dis-FLE conditionnel
+tidy_surv(tar_read(surv_health_adj)) %>%
+    group_by(sex = str_sub(strata, 5, 5)) %>%
+    reframe(
+        ages = seq(50, 100, length.out = 50),
+        expect = surv_time(time, surv, x = ages, maxtime = 100) - ages,
+        expect_up = surv_time(time, upper, x = ages, maxtime = 100) - ages,
+        expect_dn = surv_time(time, lower, x = ages, maxtime = 100) - ages
+    ) %>%
+    filter(ages < 100) %>%
+    ggplot() +
+    aes(
+        x = ages,
+        y = expect,
+        ymax = expect_up,
+        ymin = expect_dn,
+        group = sex,
+        color = sex
+    ) +
+    geom_ribbon(alpha = 0.4, color = NA) +
+    geom_line() +
+    expand_limits(y = 0) +
+    labs(y = "Dis-FLE", x = "Âge", color = "Sexe")
+
+ggsave_tikz("figures/ph-health-adj-expect-curve-nocov", height = fig_height, width = fig_width, hadjust = 1, vadjust = 0)
+```
+
+```{r health-surv-curve-nocov}
+# Courbes de survie sans maladie
+tidy_surv(tar_read(surv_health)) %>%
+    # Reduce the number of points to make output plot lighter
+    group_by(strata, floor(time * 20)) %>%
+    slice_head(n = 1) %>%
+    ungroup() %>%
+    ggplot() +
+    aes(
+        x = time,
+        y = surv,
+        ymax = 1.001 * upper,
+        ymin = 0.999 * lower,
+        color = str_sub(strata, 5, 5),
+        group = str_sub(strata, 5, 5)
+    ) +
+    geom_ribbon(alpha = 0.4, color = NA) +
+    geom_line() +
+    scale_y_continuous(labels = scales::percent_format(suffix = "\\,\\%")) +
+    coord_cartesian(xlim = c(50, 100)) +
+    labs(x = "Âge", y = "$\\hat{S}(t)$", color = "Sexe")
+
+# Since I disable sanizing I need to ecape % myself
+ggsave_tikz("figures/ph-health-surv-curve-nocov", sanitize = FALSE, height = fig_height, width = fig_width, hadjust = 1.05, vadjust = 0)
+```
+
+
+```{r}
+# Dis-FLE conditionnel
+tidy_surv(tar_read(surv_health)) %>%
+    group_by(sex = str_sub(strata, 5, 5)) %>%
+    reframe(
+        ages = seq(50, 100, length.out = 50),
+        expect = surv_time(time, surv, x = ages, maxtime = 100) - ages,
+        expect_up = surv_time(time, upper, x = ages, maxtime = 100) - ages,
+        expect_dn = surv_time(time, lower, x = ages, maxtime = 100) - ages
+    ) %>%
+    filter(ages < 100) %>%
+    ggplot() +
+    aes(
+        x = ages,
+        y = expect,
+        ymax = expect_up,
+        ymin = expect_dn,
+        group = sex,
+        color = sex
+    ) +
+    geom_ribbon(alpha = 0.4, color = NA) +
+    geom_line() +
+    expand_limits(y = 0) +
+    labs(y = "Dis-FLE", x = "Âge", color = "Sexe")
+
+ggsave_tikz("figures/ph-health-expect-curve-nocov", height = fig_height, width = fig_width, hadjust = 1, vadjust = 0)
+```
+
+
+
+
+
+```{r hly-comparison-table}
+# Comparaison entre HLY et Dis-FLE
+compar_hly <- tidy_surv(tar_read(surv_health_adj)) %>%
+    group_by(strata) %>%
+    reframe(
+        age = c(50, 65),
+        hly = surv_time(time, surv, age, maxtime = 100) - age
+    ) %>%
+    mutate(
+        Method = "Dis-FLE",
+        age = age,
+        sex = str_extract(strata, "sex=([FM])", group = 1),
+        strata = NULL,
+        .before = everything()
+    )
+
+hly <- tar_read(eurostat_hly) %>%
+    filter(
+        unit == "YR",
+        indic_he %in% c("HLY_50", "HLY_65"),
+        geo == "FR",
+        year %in% 2010:2013,
+        sex != "T"
+    ) %>%
+    arrange(unit) %>%
+    mutate(age = as.integer(str_extract(indic_he, "HLY_([0-9]{2})", 1))) %>%
+    group_by(sex, age) %>%
+    summarize(hly = mean(hly), .groups = "drop") %>%
+    mutate(
+        Method = "HLY",
+        age = age,
+        .before = everything()
+    )
+
+# Combine and compute differences
+final_table <- bind_rows(
+    compar_hly,
+    hly
+) %>%
+    mutate(
+        sex = if_else(sex == "F", "Femmes", "Hommes"),
+    ) %>%
+    pivot_wider(
+        id_cols = c(age, sex),
+        values_from = hly,
+        names_from = Method
+    ) %>%
+    arrange(age, sex) %>%
+    group_by(age) %>%
+    rename(
+        Sexe = sex,
+        Age = age
+    ) %>%
+    mutate(`Écart` = HLY - `Dis-FLE`, `Écart relatif` = `Écart` / HLY)
+
+# Save table to LaTeX
+final_table %>%
+    mutate(Age = paste("à", Age, "ans")) %>%
+    gt() %>%
+    fmt_percent(columns = c(`Écart relatif`), decimals = 2) %>%
+    fmt_number(columns = c(HLY, `Dis-FLE`, `Écart`), decimals = 1) %>%
+    my_as_latex(env = "tabular") %>%
+    as.character() %>%
+    writeLines("tables/ph-hly-comparison-detailed.tex")
+
+dis_fle_plot +
+    geom_point(
+        data = hly,
+        aes(x = age, y = hly, color = sex),
+        size = 3,
+        inherit.aes = FALSE
+    ) +
+    # Add text labels ("HLY") with slight offsets
+    geom_text(aes(x = 72, y = 19), label = "EVSI", color = "black", hjust = 0, size = 3) +
+    # Arrows or lines from labels to points
+    geom_segment(aes(x = 70, y = 19.6, xend = 51, yend = 19.5), arrow = arrow(length = unit(0.15, "cm")), color = "black") +
+    geom_segment(aes(x = 70, y = 19.6, xend = 65.5, yend = 12), arrow = arrow(length = unit(0.15, "cm")), color = "black")
+
+ggsave_tikz("figures/ph-support-health-adj-expect-curve-nocov-with-hly", height = fig_height, width = fig_width, hadjust = 1, vadjust = 0)
+```
+
+
+## Cox model inferences \label{sec:cox}
+
+### Risk profiles
+
+```{r cox-profile-surv-curves}
+tar_read(cox_health_profiles_surv) %>%
+    filter(time < 50) %>%
+    # Reduce the number of points to make output plot lighter
+    group_by(strata, floor(time * 20)) %>%
+    slice_head(n = 1) %>%
+    ungroup() %>%
+    mutate(
+        profile = case_when(
+            profile == "Lowest" ~ "Sans facteur de risque",
+            profile == "Intermediate" ~ "Un seul facteur de risque",
+            profile == "Highest" ~ "Facteurs de risque multiples",
+        ) %>%
+            factor(
+                levels = c(
+                    "Sans facteur de risque",
+                    "Un seul facteur de risque",
+                    "Facteurs de risque multiples"
+                ),
+                ordered = TRUE
+            )
+    ) %>%
+    ggplot() +
+    aes(
+        x = time + 50,
+        y = surv,
+        ymax = upper,
+        ymin = lower,
+        group = id,
+        color = profile
+    ) +
+    geom_ribbon(alpha = 0.4, color = NA) +
+    geom_line() +
+    scale_y_continuous(labels = scales::percent_format(suffix = "\\,\\%")) +
+    scale_color_viridis_d() +
+    facet_wrap(vars(sex)) +
+    labs(
+        x = "Âge",
+        y = "$\\hat{S}(t)$",
+        color = "Profil de risque"
+    )
+
+# Save plot using TikZ
+ggsave_tikz("figures/ph-cox-profile-surv-curves", width = textwidth, height = fig_height, hadjust = 0, vadjust = 0, sanitize = FALSE)
+```
+
+```{r ph-profile-surv-time-curves}
+# Dis-FLE conditionnel pour les profils de risque
+tar_read(cox_health_profiles_surv) %>%
+    group_by(id, sex, profile) %>%
+    reframe(
+        ages = seq(50, 100, length.out = 50),
+        expect = surv_time(
+            time + 50,
+            surv,
+            x = ages,
+            maxtime = 100
+        ) - ages,
+        expect_up = surv_time(
+            time + 50,
+            upper,
+            x = ages,
+            maxtime = 100
+        ) - ages,
+        expect_dn = surv_time(
+            time + 50,
+            lower,
+            x = ages,
+            maxtime = 100
+        ) - ages
+    ) %>%
+    mutate(
+        profile = case_when(
+            profile == "Lowest" ~ "Sans facteur de risque",
+            profile == "Intermediate" ~ "Un seul facteur de risque",
+            profile == "Highest" ~ "Facteurs de risque multiples",
+        ) %>%
+            factor(
+                levels = c(
+                    "Sans facteur de risque",
+                    "Un seul facteur de risque",
+                    "Facteurs de risque multiples"
+                ),
+                ordered = TRUE
+            )
+    ) %>%
+    ggplot() +
+    aes(
+        x = ages,
+        y = expect,
+        ymin = expect_dn,
+        ymax = expect_up,
+        group = id,
+        color = profile
+    ) +
+    geom_ribbon(color = NA, alpha = 0.4) +
+    geom_line() +
+    expand_limits(y = 0) +
+    scale_color_viridis_d() +
+    facet_wrap(vars(sex)) +
+    labs(
+        y = "Dis-FLE",
+        x = "Âge",
+        color = "Profil de risque"
+    )
+
+# Save plot using TikZ
+ggsave_tikz("figures/ph-profile-surv-time-curves", width = textwidth, height = fig_height, hadjust = 0, vadjust = 0)
+```
+
+
+### Sex
+
+
+```{r cox-tt1-effects-sex}
+# Ratios des hasards dépendants de l'âge pour le sexe
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+    filter(sex != "F") %>%
+    mutate(
+        value = case_when(
+            fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+            fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+            fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+            sex != "F" ~ sex
+        )
+    ) %>%
+    ggplot() +
+    aes(
+        x = 50 + 2 * tgroup,
+        y = fit,
+        ymax = fit_up,
+        ymin = fit_dn,
+        xmin = 50 + 2 * tgroup,
+        xmax = 50 + 2 * (tgroup + 1)
+    ) +
+    # Fake step ribbon
+    geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+    geom_step() +
+    expand_limits(y = 1) +
+    labs(
+        x = "Âge",
+        y = "Ratio des hasards"
+    )
+
+# Save plot using TikZ
+ggsave_tikz("figures/ph-cox-tt1-effects-sex", height = fig_height, width = fig_width, hadjust = 0, vadjust = 0)
+```
+
+
+### Behavioral risk factors
+
+
+```{r}
+# Ratios des hasards pour les facteurs de risque comportementaux
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+    filter(sex == "F") %>%
+    mutate(
+        var = case_when(
+            fdr_obesity_cat3 != "0" ~ "Obésité",
+            fdr_aud_cat3 != "0" ~ "Alcool",
+            fdr_smoker_cat3 != "0" ~ "Tabagisme",
+            sex != "F" ~ "Sexe"
+        ),
+        value = case_when(
+            fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+            fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+            fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+            sex != "F" ~ sex
+        )
+    ) %>%
+    ggplot() +
+    aes(
+        x = 50 + 2 * tgroup,
+        y = fit,
+        ymax = fit_up,
+        ymin = fit_dn,
+        xmin = 50 + 2 * tgroup,
+        xmax = 50 + 2 * (tgroup + 1),
+        group = value,
+        color = value
+    ) +
+    # Fake step ribbon
+    geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+    geom_step() +
+    facet_wrap(vars(var)) +
+    labs(
+        x = "Âge",
+        y = "Ratio de hasard",
+        color = "Catégorie"
+    )
+
+# Save plot using TikZ
+ggsave_tikz("figures/ph-cox-tt1-effects-fdr", width = textwidth, height = fig_height, hadjust = 0, vadjust = 0)
+```
+
+
+### Multiple behavioral risk factors
+
+```{r}
+inter_naive <- tar_read(cox_health_f1_tt1_inter_tt) %>%
+    select(var1, var2, val1, val2, times, fit, fit_up, fit_dn) %>%
+    filter(
+        (val1 == "2" & val2 == "0" | val1 == "0" & val2 == "2")
+    ) %>%
+    mutate(
+        across(c(var1, var2), \(x) {
+            case_when(
+                x == "fdr_smoker_cat3" ~ "Tabagisme",
+                x == "fdr_aud_cat3" ~ "Alcool",
+                x == "fdr_obesity_cat3" ~ "Obésité",
+            )
+        }),
+    ) %>%
+    left_join(
+        .,
+        .,
+        by = c(
+            "times",
+            var2 = "var1", var1 = "var2",
+            val1 = "val1", val2 = "val2"
+        )
+    ) %>%
+    mutate(
+        fit = fit.x * fit.y,
+        fit_up = fit_up.x * fit_up.y,
+        fit_dn = fit_dn.x * fit_dn.y,
+        combo = sprintf("%s et %s", var1, var2),
+        category = "Effet combiné sans interaction"
+    ) %>%
+    select(var1, var2, times, fit, fit_up, fit_dn, combo, category)
+
+
+tar_read(cox_health_f1_tt1_inter_tt) %>%
+    mutate(
+        across(c(var1, var2), \(x) {
+            case_when(
+                x == "fdr_smoker_cat3" ~ "Tabagisme",
+                x == "fdr_aud_cat3" ~ "Alcool",
+                x == "fdr_obesity_cat3" ~ "Obésité",
+            )
+        }),
+        combo = sprintf("%s et %s", var1, var2),
+        category = case_when(
+            val1 == "2" & val2 == "0" ~ sprintf("%s uniquement", var1),
+            val1 == "0" & val2 == "2" ~ sprintf("%s uniquement", var2),
+            val1 == "2" & val2 == "2" ~ "Effet combiné avec interaction",
+        ),
+    ) %>%
+    filter(
+        var1 <= var2,
+        val1 != "1",
+        val2 != "1",
+        !(val1 == "0" & val2 == "0"),
+    ) %>%
+    bind_rows(inter_naive) %>%
+    mutate(
+        category_label = str_wrap(category, 15),
+        category_label = fct_reorder(category_label, fit, max, .desc = TRUE),
+        combo = str_replace(combo, "\\bet\\b", "et\n"),
+    ) %>%
+    filter(
+        combo %in% combo[category != "Effet combiné sans interaction"]
+    ) %>%
+    ggplot() +
+    aes(
+        x = times,
+        y = fit,
+        ymax = fit_up,
+        ymin = fit_dn,
+        xmin = times,
+        xmax = times + 2,
+        group = category_label,
+        color = category_label,
+    ) +
+    # Fake step ribbon
+    geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+    geom_step() +
+    facet_grid(cols = vars(combo)) +
+    labs(x = "Âge", y = "Ratio de hasard", color = NULL) +
+    expand_limits(y = 1) +
+    theme(legend.key.height = unit(1, "cm"))
+
+# Save plot using TikZ
+ggsave_tikz("figures/ph-cox-tt1-effects-fdr-inter", width = textwidth, height = fig_height, vadjust = 0.5, hadjust = 0)
+```
+
+### Behavioral risk factors conditional on sex
+
+
+```{r}
+tar_read(cox_tidy_health_formula1_tt1) %>%
+    select(term, estimate, std.error, p.value) %>%
+    filter(
+        str_detect(term, "^fdr"),
+        str_detect(term, "sex"),
+        str_detect(term, ":"),
+        str_detect(term, "cat32")
+    ) %>%
+    mutate(
+        risk_factor = str_extract(term, "fdr_(.*)_cat", group = 1),
+        risk_factor = case_when(
+            risk_factor == "obesity" ~ "Obesity",
+            risk_factor == "aud" ~ "Alcohol",
+            risk_factor == "smoker" ~ "Smoking",
+        ),
+        term = NULL,
+        .before = everything()
+    ) %>%
+    select(
+        `Risk factor (Cat. 2)` = risk_factor,
+        `Hazard ratio` = estimate,
+        `Std. error` = std.error,
+        `p-value` = p.value,
+    ) %>%
+    mutate(across(where(is.numeric), number_format(0.001))) %>%
+    gt() %>%
+    my_as_latex(env = "tabular") %>%
+    as.character() %>%
+    writeLines("tables/ph-cox-f3-coefs-fdr-inter.tex")
+```
+
+### Geographical
+
+### Geographical
+
+#### Hazard Ratios for Departments
+
+```{r}
+# Ratios des hasards pour les départements de résidence
+map_coefs <- tar_read(cox_tidy_health_formula1_tt1) %>%
+    select(term, estimate, std.error, p.value) %>%
+    filter(str_detect(term, "^dep")) %>%
+    add_row(term = "dep01", estimate = 1, std.error = 0) %>%
+    mutate(
+        dep = str_extract(term, "dep([AB0-9]{2})", group = 1),
+        estimate = estimate / estimate[dep == "78"],
+        estimate = replace(estimate, p.value > 0.05, NA)
+    )
+
+st_read("data/contour-des-departements.geojson", quiet = TRUE) %>%
+    st_simplify(dTolerance = 2000) %>%
+    st_buffer(500) %>%
+    left_join(map_coefs, by = c("code" = "dep")) %>%
+    ggplot() +
+    aes(fill = estimate) +
+    geom_sf() +
+    scale_fill_viridis_b() +
+    labs(fill = "Ratio des hasards") +
+    theme_void() +
+    theme(
+        # text = element_text(size = 6),
+        text = element_text(family = "Latin Modern Roman"),
+        legend.key.size = unit(1, "line")
+    )
+
+# Save plot using TikZ
+ggsave_tikz("figures/ph-cox-f3-coefs-dep", format = "pdf", height = 0.5 * textheight, width = textwidth, hadjust = 0, vadjust = 0)
+```
+
+#### Life Expectancy Maps
+
+```{r}
+# Espérance de vie à 60 ans par sexe et par département
+insee_life_expectancy <- read.xlsx(
+    "data/TCRD_050.xlsx",
+    sheet = "DEP",
+    rows = 6:101,
+    cols = c(1, 9, 10),
+    colNames = FALSE
+) %>%
+    set_names(c("dep", "le_H", "le_F")) %>%
+    as_tibble() %>%
+    pivot_longer(
+        starts_with("le"),
+        names_prefix = "le_",
+        names_to = "sex",
+        values_to = "le"
+    )
+
+plot_le <- function(x, label) {
+    x %>%
+        ggplot() +
+        aes(fill = le) +
+        geom_sf() +
+        scale_fill_viridis_b() +
+        labs(fill = label) +
+        theme_void() +
+        theme(
+            # text = element_text(size = 6),
+            text = element_text(family = "Latin Modern Roman"),
+            # legend.key.size = unit(1, "line")
+        )
+}
+
+le_h_plot <- st_read("data/contour-des-departements.geojson", quiet = TRUE) %>%
+    st_simplify(dTolerance = 2000) %>%
+    st_buffer(500) %>%
+    left_join(insee_life_expectancy, by = c("code" = "dep"), multiple = "all") %>%
+    filter(sex == "H") %>%
+    plot_le("Espérance de vie\nmasculine")
+
+le_f_plot <- st_read("data/contour-des-departements.geojson", quiet = TRUE) %>%
+    st_simplify(dTolerance = 2000) %>%
+    st_buffer(500) %>%
+    left_join(insee_life_expectancy, by = c("code" = "dep"), multiple = "all") %>%
+    filter(sex == "F") %>%
+    plot_le("Espérance de vie\nféminine")
+
+library(patchwork)
+le_f_plot / le_h_plot
+
+# Save plots
+ggsave_tikz("figures/ph-insee-le-dep", format = "pdf", height = textheight - 4, width = textwidth, hadjust = 0, vadjust = 0)
+```
+
+#### Education and Immigration Hazard Ratios
+
+```{r}
+# Ratios des hasards pour l'éducation et l'immigration
+tar_read(cox_tidy_health_formula1_tt1) %>%
+    filter(str_detect(term, "^immi|^dip")) %>%
+    mutate(
+        var = case_when(
+            str_detect(term, "immigration") ~ "Immigration",
+            str_detect(term, "diplome") ~ "Éducation"
+        ),
+        value = str_extract(term, "([0-3])$", group = 1)
+    ) %>%
+    select(
+        `Variable` = var,
+        `Quartile` = value,
+        `Ratio des hasards` = estimate,
+        `Erreur standard` = std.error,
+        `p-valeur` = p.value
+    ) %>%
+    mutate(across(where(is.numeric), number_format(0.001))) %>%
+    gt() %>%
+    as_latex() %>%
+    as.character() %>%
+    writeLines("tables/ph-coefs-immi-dip.tex")
+```
+
+
+# Appendix
+
+## Filters
+
+```{r, message=FALSE}
+pmsi_volumes <- suppressMessages(read_csv(
+    "reports/disease_filters.csv",
+    col_types = cols(
+        level = col_integer(),
+        criteria_en = col_character(),
+        criteria_fr = col_character(),
+        years = col_character(),
+        pop_size = col_character(),
+        percent = col_character(),
+        pop_remain = col_character(),
+        percent_of_total = col_character()
+    )
+)) %>%
+    rename_with(
+        \(x) {
+            case_when(
+                TRUE ~ x
+            )
+        }
+    ) %>%
+    mutate(
+        across(
+            c(pop_size, pop_remain),
+            ~ as.integer(str_remove_all(., " "))
+        ),
+        across(
+            c(percent, percent_of_total),
+            ~ as.double(str_replace(str_remove_all(., "%"), ",", ".")) / 100
+        )
+    )
+
+pmsi_volumes %>%
+    mutate(percent = pop_size / max(pop_size, na.rm = TRUE)) %>%
+    mutate(
+        across(pop_size, number_format()),
+        across(percent, percent_format(0.1)),
+    ) %>%
+    mutate(across(where(is.character), ~ replace_na(., ""))) %>%
+    mutate(
+        across(
+            starts_with("criteria"),
+            \(x) if_else(level <= 1, paste0("STARTBF", x, "ENDBF"), x)
+        )
+    ) %>%
+    select(
+        level,
+        `Critère` = criteria_fr,
+        `Années` = years,
+        `Pop. concernée` = pop_size,
+        `% de la pop.` = percent
+    ) %>%
+    gt() %>%
+    cols_hide(level) %>%
+    my_as_latex(env = "tabular") %>%
+    as.character() %>%
+    str_replace_all("STARTBF", "\\\\textbf{") %>%
+    str_replace_all("ENDBF", "}") %>%
+    str_replace("\\{lrrr\\}", "{p{0.5\\\\textwidth}rrr}") %>%
+    writeLines("tables/ph-filters-schwartz.tex")
+```
+
+
+## Codes CIM-10
+
+```{r icd10-codes}
+icd10_to_diseases <- suppressMessages(read_csv(
+    "reports/icd2diagnosis.csv",
+    col_types = cols(
+        level = col_integer(),
+        Variables = col_character(),
+        icd10 = col_character()
+    )
+))
+
+icd10_to_diseases %>%
+    select(-level, `ICD-10` = icd10) %>%
+    mutate(across(everything(), ~ replace_na(., ""))) %>%
+    kable(
+        "latex",
+        caption = "Correspondance entre les codes CIM-10 et les groupements des
+        pathologies utilisés dans l'analyse, ainsi que les codes utilisés pour
+        identifier les facteurs de risque.
+        Source : eTable 1 de \\cite{schwarzinger_contribution_2018}.",
+        label = "ph-icd10-codes",
+        escape = FALSE,
+        booktabs = TRUE,
+        longtable = TRUE
+    ) %>%
+    # gt(
+    #   caption = paste(
+    #     "\\label{tab:icd10-codes}",
+    #     "Mapping used to translate ICD10 codes into diseases, and risk factors.",
+    #     "Taken from eTable 1 in \\citep{schwarzinger_contribution_2018}."
+    #   )
+    # ) %>%
+    # my_as_latex() %>%
+    column_spec(1, width = "17em") %>%
+    column_spec(2, width = "17em") %>%
+    row_spec(which(icd10_to_diseases$level < 2), bold = TRUE) %>%
+    # row_spec(which(icd10_to_diseases$level < 1), bold = TRUE, background = "gray")
+    writeLines("tables/ph-icd10-codes.tex")
+```
+
+## Diagnostics modèle
+
+```{r}
+tar_read(tidy_cox_health_f1_tt1_risk_group_surv_test) %>%
+    group_by(origin, risk_group) %>%
+    mutate(
+        expect = surv_time(
+            time,
+            surv,
+            x = time,
+            maxtime = 100
+        ) - time,
+        origin = if_else(origin == "observed", "Observation", "Prédiction")
+    ) %>%
+    # Reduce the number of points to make output plot lighter
+    group_by(origin, risk_group, floor(time * 1)) %>%
+    slice_head(n = 1) %>%
+    ungroup() %>%
+    ggplot() +
+    aes(
+        x = time,
+        y = surv,
+        group = interaction(risk_group, origin),
+        color = risk_group,
+        linetype = origin
+    ) +
+    geom_line() +
+    coord_cartesian(xlim = c(50, 90)) +
+    scale_color_viridis_d() +
+    theme(legend.box = "vertical") +
+    scale_y_continuous(labels = scales::percent_format(suffix = "\\,\\%")) +
+    labs(
+        x = "Âge",
+        y = "$\\hat{S}(t)$",
+        color = "Groupe de risque",
+        linetype = NULL
+    )
+
+# Sauvegarde de la figure avec TikZ
+ggsave_tikz("figures/ph-compare-surv-test-risk-group", width = textwidth, height = fig_height, hadjust = 0, vadjust = 0, sanitize = FALSE)
+```
+
+
+```{r}
+tar_read(tidy_cox_health_f1_tt1_risk_group_surv_test) %>%
+    group_by(origin, risk_group) %>%
+    mutate(
+        expect = surv_time(
+            time,
+            surv,
+            x = time,
+            maxtime = 100
+        ) - time,
+        expect_up = surv_time(
+            time,
+            upper,
+            x = time,
+            maxtime = 100
+        ) - time,
+        expect_dn = surv_time(
+            time,
+            lower,
+            x = time,
+            maxtime = 100
+        ) - time,
+    ) %>%
+    # Reduce the number of points to make output plot lighter
+    group_by(origin, risk_group, time = floor(time * 1)) %>%
+    slice_head(n = 1) %>%
+    ungroup() %>%
+    mutate(
+        origin = if_else(origin == "observed", "Observation", "Prédiction")
+    ) %>%
+    ggplot() +
+    aes(
+        x = time,
+        y = expect,
+        ymax = expect_up,
+        ymin = expect_dn,
+        group = interaction(risk_group, origin),
+        color = risk_group,
+        linetype = origin
+    ) +
+    # Can't get reasonable confidence intervals
+    # geom_ribbon(
+    #     data = . %>% filter(origin == "Prédiction"),
+    #     aes(color = NULL),
+    #     fill = "gray",
+    #     alpha = 0.4
+    # ) +
+    geom_line() +
+    coord_cartesian(xlim = c(50, 90)) +
+    scale_color_viridis_d() +
+    theme(legend.box = "vertical") +
+    labs(
+        x = "Âge",
+        y = "Dis-FLE",
+        color = "Groupe de risque",
+        linetype = NULL
+    )
+
+# Sauvegarde de la figure avec TikZ
+ggsave_tikz("figures/ph-compare-surv-time-test-risk-group", width = textwidth, height = fig_height, hadjust = 0, vadjust = 0, sanitize = TRUE)
+```

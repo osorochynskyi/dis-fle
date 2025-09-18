@@ -1,0 +1,935 @@
+---
+title: "Exploration données qualidays"
+author: "Oleksandr Sorochynskyi"
+date: "`r lubridate::today()`"
+bibliography: biblio.bib
+output:
+    pdf_document: 
+        number_sections: true
+        keep_tex: no
+        latex_engine: lualatex
+        toc: true
+        fig_crop: false # Causses error while looking for '/usr/bin/pdfcrop'
+        includes:
+            in_header: "papreambule.tex"
+---
+
+```{r setup, include = FALSE}
+# Pretty much all settings are loaded except for knit options
+source("R/options_visual.R")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Le but de ce document est de structurer l'exploration des données "Qalidays".
+Il s'agit d'une base de données de passages à l'hôpital pour cause grave et
+concerne l'ensemble de tels passages sur le territoire français. De plus,
+les données sont complétées par des informations supplémentaires sur la personne
+concernée, tel que leur âge approximatif, le sexe, région de d'habitation, etc.
+Le dernier statut connu pour les personnes est également indiqué, par exemple en
+vie (censuré) ou décès.
+
+Les finalités des études précédentes sur ces données étaient des estimations de
+l'espérance de vie en fonction de divers facteurs de risque ; l'estimation
+de l'incidence des divers maladies graves et l'impact des facteurs de risque
+sur cette incidence.
+
+Ici, avant de s'attaquer à d'autres problématiques, je tenterai de re-produire
+les résultats des études précédentes et en ce faisant explorer les données. 
+
+Plus précisément, les buts sont les suivants :
+
+1. Donner la distribution de durée de vie, toutes causes confondue ;
+1. Identifier des facteurs de risque avec influence sur la durée de vie
+attendu ;
+1. Distinguer plusieurs causes de décès ;
+1. Identifier l'incidence d'autres états que le décès.
+
+
+# Description données
+
+## Contexte
+
+La base de données étudiée est un extrait de PMSI qui ne contient que les
+personnes ayant au moins un sejour hôpital pour un pathologie grave. La base
+PMSI regroupe l'ensemble des passages à l'hôpital en France, avec les
+pathologies est soins appliqués. Le periode d'observation des passages est
+entre 2008 et 2013. Or, pour isoler un cohort des personnes en bonne santé,
+les personnes avec des passages pour pathologies graves en 2008 et 2009 étaient
+exclus.
+
+En plus de l'information sur les passages à l'hôpital la base
+inclut des informations sur l'individu, tel que leur âge et des
+facteurs de risque. Il faut noter que cette information sur l'individu donne
+une vision statique, c'est-à-dire que ces informations ne sont pas mises à jour
+à chaque passage.
+
+Les données, tels que transmis, sont sous la forme d'un tableau. Avec une
+ligne par passage, puis avec les informations spécifiques à l'indivus étant
+dupliquées Comme je le montre par la suite j'ai trouvé qu'il est plus facile
+de séparer ce tableau en deux.
+
+## Interval d'observation
+
+Tous les passages en hôpital ont été enregistrés. Les années d'observation sont
+2008,2009,2010,2011,2012,2013. Sur ces six années les patients avec passage
+à l'hopital pour motif grave en 2008 et 2009 ont été supprimés. Cela correspond
+à un sort de troncature à gauche, il n'est pas clair comment integrer cela à 
+l'analyse.
+
+Pour les individus observés ils étaient observés, les événements `STATE2_PDV`
+et `STATE1_NO_PATHOL1` correspondent à la censure et à une visite sans aucune
+des pathologies que l'on étudie. Ainsi, je considère que touts les individus
+sont observés du 01-01-2008 au 31-12-2013, avec seulement `STATE2_PDV`,
+`STATE2_DECES` étant des événements censurant.
+
+## Exploration
+
+Pour faciliter l'exploration des donnés, un échantillon aléatoire est utilisée.
+
+```{r}
+d <- tar_read(raw_benchmarks) %>%
+    filter(id %in% c(75403, sample(id, size = 10e3)))
+```
+
+On peut d'abord constater que la majorité des colonnes sont des indicatrices
+pour des diverses pathologies. Par exemple :
+
+```{r}
+sample(colnames(d)[22:111], size = 10)
+```
+
+On note qu'une de ces pathologies est `"STATE2_DECES"`.
+
+
+### Dates de passage
+
+D'abord j'interroge l'intervalle de temps. Je note que :
+
+1. Les données couvent globalement 2008 à 2013 ;
+2. Il y a une incidence nettement plus basse en 2008 à 2010 ;
+3. Il y a une forte périodicité avec des points d'accumulation.
+
+```{r}
+ggplot(d, aes(x = date_event)) +
+    geom_histogram(binwidth = 5)
+```
+
+Le période d'observation est effectivement de 2008 à 2013. La plus faible
+incidence en 2008 et 2009 est expliqué par le fait les individus pour qui il y
+a eu une survenance d'une pathologie grave dans ces deux ans étaient
+supprimés. L'idée est de garder uniquement les individus en bonne santé sur le
+période de 2010 à 2013. Ainsi dans la suite on est contraint de garder la même
+convention.
+
+La suppression des individus avec des pathologies graves est reflété dans
+l'absence de tout événement non censurant avant 2010, comme le montre le
+tableau ci-dessous.
+
+```{R}
+d %>%
+    {
+        full_join(
+            filter(., year(date_event) < 2010) %>% pull(event) %>% fct_count(),
+            filter(., year(date_event) >= 2010) %>% pull(event) %>% fct_count(),
+            by = "f",
+            suffix = c("_av2010", "_ap2010")
+        )
+    } %>%
+    arrange(desc(n_av2010)) %>%
+    head(20) %>%
+    kable("latex")
+```
+
+Concernant la périodicité, il apparait que la date "pic" tombe systématiquement
+sur le 16 ou le 15 de chaque mois.
+
+```{r}
+d %>%
+    group_by(date_event) %>%
+    count() %>%
+    arrange(desc(n)) %>%
+    head(10) %>%
+    kable("latex")
+```
+
+De plus, la périodicité est extrêmement régulière avec la distribution des jours
+de passage à l'intérieur du mois est très stable. Comme vu
+précédemment le pic tombe sur le 16 du mois, sauf pour le mois de février.
+
+```{r}
+d %>%
+    filter(year(date_event) >= 2008) %>%
+    slice_sample(prop = 0.1) %>%
+    mutate(
+        dat_stat = format(floor_date(date_event, "month"), "%Y-%m"),
+        dat_stat = factor(dat_stat, levels = sort(unique(dat_stat)))
+    ) %>%
+    ggplot() +
+    aes(
+        x = day(date_event),
+        group = dat_stat,
+        color = ifelse(month(date_event) == 2, "fév.", "autre")
+    ) +
+    geom_density() +
+    labs(color = "")
+```
+
+Ce pattern est très régulier --- je soupçonne que c'est le reflet de la méthode
+de l'anonymisation.
+
+### Age 
+
+L'âge des patients est partiellement bruité, on ne dispose que de l'âge
+arrondi. On peut quand même en déduire la date de naissance approximative pour
+le comparer à la population globale.
+
+```{r distribution_des_naissances}
+d %>%
+    mutate(
+        bday = ymd("2008-01-01") - days(round(365.25 * age_20080101))
+    ) %>%
+    ggplot() +
+    aes(x = bday) %>%
+    geom_histogram(binwidth = 40)
+```
+
+```{r distribution_ages}
+d %>%
+    ggplot() +
+    aes(x = age_20080101, fill = factor(male)) %>%
+    geom_histogram(binwidth = 1) +
+    facet_grid(rows = vars(male))
+```
+
+L'allure des ages parait normal", sauf le fait que les ages sont tronqués
+à 44 ans (au 2008/01/01).
+
+Comme le perimètre est défini sur la population de 50 et plus. Alors il n'est
+pas clair comment c'est reflaité dans la base, car les ages de survenance
+sont parfaois inféreurs à 50 (eviron 5% de la population).
+
+```{r}
+d %>%
+    group_by(id) %>%
+    summarize(
+        max_age = max(age_event),
+        min_age = min(age_event),
+        .groups = "drop"
+    ) %>%
+    filter(max_age < 50) %>%
+    mutate(err = 50 - max_age) %>%
+    ggplot() +
+    aes(x = err) +
+    geom_histogram(binwidth = 0.1)
+```
+
+Je soupçonne qu'il s'agit, à nouveau, d'un artifact lié à la méthode de censure.
+Il serait peut-être interessant, voire nécessaire d'intégrer cet source d'aléa
+dans la modélisation. Ici ce qui est interssant c'est que l'on peut identifier
+la distribution du bruit appliqué.
+
+
+### Sexe
+
+La majorité de la base sont des femmes, ce qui est peu étonnant vu qu'il s'agit
+d'une population dont les âges faibles sont tronqués.
+
+```{r}
+d$male %>%
+    as.character() %>%
+    fct_count(prop = TRUE) %>%
+    mutate(n = scales::number(n), p = scales::percent(p)) %>%
+    rename(male = f) %>%
+    kable("latex")
+```
+
+### Facteurs de risque
+
+```{r}
+d %>%
+    select(starts_with("fdr_")) %>%
+    summary()
+```
+
+Trois facteurs de risque sont identifiées :
+
+* La consommation d'alcool (`"aud"`) ;
+* la consommation de tabac (`"smoker"`) ;
+* l'obésité (`"obesity"`) ;
+
+Pour chaque facteur de risque deux niveaux de granularité sont identifiés :
+
+* tout niveau de gravité confondus (`"all"`) ;
+* trois niveau de gravité : aucun, faible et sevère (`"cat3"`).
+
+Par exemple :
+
+```{R}
+d %$%
+    table(fdr_aud_all, fdr_aud_cat3)
+```
+
+### Autres variables
+
+```{r}
+d %>%
+    select("cp_dep", "cp_immi", "cp_dipl0", "prob_hosp0813", "cp_reg") %>%
+    mutate(
+        across(starts_with("cp"), factor),
+        across(starts_with("prob"), ~ as.numeric(as.character(.)))
+    ) %>%
+    summary()
+```
+
+La variable `cp_dep` correspond au département de l'individu.
+
+La variable `cp_immi` correspond au statut d'immigration de l'individu (la
+signification de chaque code est inconnu).
+
+`cp_dipl0` correspond au niveau d'études (`dipl` pour diplôme).
+
+Il faut noter que cette information est constaté à l'individu fixé. Elle est
+notamment constante dans le temps. Le tableau ci-dessous vérifie que
+les colonnes citées sont bien constantes étant donné un `id`.
+
+```{r}
+d %>%
+    filter(id %in% sample(id, 10e3)) %>%
+    filter(
+        duplicated(id, fromLast = TRUE) | duplicated(id, fromLast = FALSE)
+    ) %>%
+    group_by(id) %>%
+    summarize(
+        across(
+            c(age_20080101, male, starts_with("fdr"), starts_with("cp")),
+            n_distinct
+        ),
+        .groups = "drop"
+    ) %>%
+    summarize(
+        across(-id, ~ all(. == 1L))
+    ) %>%
+    kable("latex") %>%
+    kable_styling(latex_options = "scale_down")
+```
+
+### `prob_hosp0813` 
+
+Cette variable a été construit pour pouvoir ajuster l'analyse pour prendre en
+compte que la base ne contient que la population hospitalisée et donc ajuster
+l'exposition.
+
+J'imagine le calcul comme ça : si parmi toutes les entrées en hôpital
+10 % sont avec une maladie X et de plus  5 % de la population qui
+rentre en hôpital (l'info de la colonne `prob_hosp0813`),
+la proba de rencontrer cette maladie dans la population générale est
+de 5 % * 10 %, soit 0.5 %.
+
+Dans tous les cas Quentin suggère que cette variable n'a pas été retenu et que
+l'on fera mieux de l'ignorer.
+
+### `anee_event` et `age_event`
+
+Informations recalculables à partir de la date de l'événement.
+
+### `t_last`, `time1`, `time2`, `status`
+
+Variables calculées pour faciliter l'analyse de survie. Nous les recalculerons
+lorsqu'en aura besoin.
+
+### Pathologies
+
+Ici on s'intéresse à l'événement qui a provoqué le passage à l'hôpital. D'abord
+je note que la majorité des événements correspond au `"STATE2_PDV"` et
+`"STATE1_NO_PATHOL1"`, qui correspond aux situations où l'individu n'a pas de
+passage à l'hôpital pour un motif grave. En effet, ces deux événements
+représentant à peu près 60 % des événements (ces chiffres sont biaisés par les
+événements avant 2010).
+
+```{r}
+fct_count(d$event, sort = TRUE, prop = TRUE) %>%
+    mutate(n = number(n), p = percent(p, .1)) %>%
+    head(15) %>%
+    kable("latex")
+```
+
+Je note que lorsque les deux motifs sont présents `"STATE2_PDV"` est forcément
+précédé par `"STATE1_NO_PATHOL1"`". 
+
+```{r}
+d %>%
+    select(id, event, date_event) %>%
+    group_by(id) %>%
+    mutate(n_autres = sum(event %in% c("STATE2_PDV", "STATE1_NO_PATHOL1"))) %>%
+    ungroup() %>%
+    filter(n_autres > 1) %>%
+    arrange(id, date_event) %>%
+    pivot_wider(id_cols = id, names_from = event, values_from = date_event) %>%
+    mutate(diff = interval(STATE1_NO_PATHOL1, STATE2_PDV) / days(1)) %>%
+    summarize(prop_pos = mean(diff > 0)) %>%
+    kable("latex")
+```
+
+Pour comprendre mieux la structure prenons quelques exemples concrets.
+
+```{R}
+d %>%
+    select(id, event, date_event) %>%
+    group_by(id) %>%
+    mutate(
+        nb_evenements = n(),
+        nb_autres = sum(event %in% c("STATE2_PDV", "STATE1_NO_PATHOL1"))
+    ) %>%
+    ungroup() %>%
+    filter(nb_evenements > 1) %>%
+    group_by(nb_autres) %>%
+    filter(id %in% sample(unique(id), size = 1)) %>%
+    arrange(id, date_event) %>%
+    kable("latex")
+```
+
+On distingue ainsi trois situations :
+
+1. lorsqu'il y a qu'un seul événement qui apparait l'événement "STATE2_PDV"
+correspond à l'admission de censure ;
+1. lorsque aucun de ces deux événements n'apparait le dernier événement est
+un décès ;
+1. lorsque ces deux événements apparaissent il s'agit d'un parcours censuré sans
+pathologie constaté.
+
+Environ 80 variables indiquent la présence de diverses pathologies dans
+l'histoire du patient. D'abord il faut noter que ces pathologies sont
+des regroupements des autres pathologies bien plus fines. (cf. travaux de
+Michaël sur ce groupement)
+
+La valeur de ces colonnes correspond à l'age auquel cette pathologie a été
+détecté ou `0` lorsque la pathologie n'a jamais était détecté chez cet
+l'individu. Par exemple, le tableau ci-dessous donne un cas concret d'un
+individu avec plusieurs visites à l'hôpital.
+
+```{r}
+d %>%
+    filter(id %in% c(75403)) %>%
+    select(
+        id, date_event, event, age_event,
+        CARDIO1_RYTHME_1ACFA, CANCER1_PC_GOOD, BLOOD1_1TRANSFUSION,
+        KIDNEY1_1INSUF_CHRO, STATE2_DECES
+    ) %>%
+    kable("latex") %>%
+    kable_styling(latex_options = "scale_down")
+```
+
+De plus comme on a l'âge de l'occurrence de la pathologie on peut calculer
+le taux d'incidence ainsi que l'âge moyen d'incidence. 
+
+```{r}
+d %>%
+    arrange(date_event) %>%
+    filter(!duplicated(id)) %>%
+    summarize(
+        across(
+            BLOOD0_2ANEMIA_IRON:STATE2_DECES,
+            list(taux = ~ mean(. != 0), moyen = ~ mean(.[. > 0]))
+        ),
+        .groups = "drop"
+    ) %>%
+    pivot_longer(
+        everything(),
+        names_to = c("pathologie", "type"),
+        names_pattern = "(.*)_(taux|moyen)$"
+    ) %>%
+    pivot_wider(
+        id_cols = c("pathologie"),
+        values_from = value,
+        names_from = type
+    ) %>%
+    filter(taux > 0, !is.nan(moyen)) %>%
+    mutate(across(taux, percent), across(moyen, number_format(0.1))) %>%
+    arrange(desc(taux)) %>%
+    rename(`Taux d'incidence` = taux, `Age moyen` = moyen) %>%
+    head(20) %>%
+    kable("latex")
+```
+
+Les pathologies sont classifées en 3 groupes : 0, 1, 2. 2 c'est essentiellement
+la mort. 1 c'est une pathologie grave, qui est d'ailleur consittue le critèe
+d'inclusion dans la base de données : ce sont des individus avec au moins un
+passage pour une pathologie 1, cf les travaux de Michaël pour plus de détail
+sur la définition de cette classe. 0 ce sont des pathologies relativement
+peu graves (relativement au pathol1 et 2). Il faut noter que malgré la présence
+des pathol0 dans les colonnes avec les pathologies, nous n'avons pas de
+l'information dessus : toutes ces colonnes sont systématiquement nulles.
+
+### `age_pathol1`
+
+Cette variable semble correspondre au premier âge d'entrée en hôpital et est
+donc recalculable à partir des autres colonnes.
+
+### `file`
+
+Variable ajouté par moi-même, correspond au fichier de source de la ligne.
+Il apparait que certaines informations dont l'emplacement géographique sont
+encodés dans le nom du fichier. Or, l'information géographique est déjà
+disponible dans la variable `cp_dep`, donc cette variable sera probablement
+inutilisé.
+
+# Autres sources de données
+
+Jusqu'ici nous nous sommes interssés aux données issus de la concatenation
+des benchmarks de Quentin. Il existe cependant une autre version des données
+sous la forme de CSV qui sert d'input pour la génération de benchmarks.
+Les données sous cette forme sont beaucoup plus proches du format retenu
+in fine et nécessite donc moins de retraitements. Il apparait également qu'il y
+a plus d'information dans ces fichiers-là. Par exemple lorsque plusieurs
+pathologies surviennent le même jour qu'une seule est retenu dans les
+benchmarks, alors que dans les .csv elles sont toutes présentes.
+
+Il existe deux variantes de données en `.csv` avec et sans imputation.
+Sans imputation ce sont les donnés tels que vu dans les benchmarks. Avec
+imputation, les données sont censurés au 2012-12-31, ce qui est bien mieux que
+juste supprimer les donnés.
+
+Pour ne retenir un source de données unique, je choisi de sourcer le `.csv`
+sans imputation, puis y appliquer toutes les retraitements.
+
+La procédure de censure est la suivante. Tous les événements au-dela du 
+2012-12-31 sont remplacés par un "STATE2_PDV". Lorsqu'il n'y a pas eu d'autres
+événments avant 2012-12-31, je ratouge un événement "STATE1_NO_PATHOL1" à
+cette date.
+
+Cettre procédure diffère de celle appliqué par Michaël. D'abord, lorsqu'il y a
+eu qu'un seul événment, et cet événement est un "STATE1_NO_PATHOL1" en 2013, il
+est gardé tel qu'il est. Lorsque tous les événements observés sont dans 2013,
+il semblerait qu'un événement "STATE1_NO_PATHOL1" est rajouté. Je supçonne que
+le déail sur les "STATE1_NO_PATHOL" est supprimé lorsqu'il y a eu des PATHOL1.
+Enfin, il semble que dans certains cas, lorsque touts les événements surviennent
+en 2023, le premier événement est convertie en "STATE1_NO_PATHOL1". Cela
+n'impacte rien, car il semble que de toute façon les personnes sans événements
+avant 2013 sont exclues.
+
+La procédure que j'applique consiste à rajouter des STATE1_NO_PATHOL1 maquants,
+puis appliquer la procédure de censure.
+
+Il a été décidé de retenir comme source le fichier CSV, car celui-ci contient
+le plus d'information. Il apparait que lorsque'il y a eu plusieurs événments
+le même jour, le benchmark n'en retient qu'un. Y compris si un des événement 
+est un décès. J'ai cru que `event_censor` détérmine la priorité des événment
+mais, il existe des cas où décès a un `event_censor` nul, ou même où
+le décès a un `event_censor` à 2 mais qu'il ne soit pas retenu. En tout
+je conste qu'il y a des événements de moins dans les benchmarks, y compris des
+décès. En tout il y a 5 millions d'événements en plus.
+
+
+# Normalisation
+
+La structure de la base parait avoir été retraité pour un certaine analyse.  A
+mon sens la base de données serait plus facile à manipuler si elle serait
+décomposée en deux tables :
+
+1. La table des individus avec l'information associés ;
+2. La table des événements.
+
+Voire une troisième table pour les pathologies si on aura suffisamment
+d'info (je pense notamment si on ne peut pas grouper les pathologies).
+
+De plus, la base contient des variables qui sont recalculables à partir des
+autres informations. Ainsi, en plus de décomposer la base en deux tables, je
+vais supprimer les colonnes calculées.
+
+En plus de la matrice avec les ages de survenues, les variables suivants
+risquent d'être calculés :
+
+* `date0_pathol1` `age_pathol1`
+* `annee_event`, `age_event`
+* `pathol1_classif`
+* `t_last`, `time1`, `time2`
+
+Après retraitements la base des individus rassemble à :
+
+```{r}
+tar_read(individu) %>%
+    slice_sample(n = 10) %>%
+    kable("latex") %>%
+    kable_styling(latex_options = "scale_down")
+```
+
+Et la base des événements :
+
+```{r}
+tar_read(evenement) %>%
+    filter(id %in% sample(id, size = 5)) %>%
+    kable("latex")
+```
+
+De plus, on sohaite conserver la posibilité d'appliquer ou pas l'imputation
+des décès. Pour cela deux versions des bases `individu` et `evenement` sont 
+créés, une avec application des imputation et une sans. Le volume des données
+avec imputation est plus faible car toutes les personnes avec une date
+d'hospitalisation en 2013 sont exclues. Le raisonement pour ce choix n'est pas
+clair pour moi, mais je le réproduit pour s'alignier avec les travaux
+précédents. Une explication possible serait le fait que le méthode d'imputation
+sur-estime le nombre de décès pour les hospitalisations en 2013.
+
+## Matrice age événements 
+
+Tout d'abord nous supprimons l'ensemble des colonnes avec les noms de
+pathologies, car elles sont recalculables à partir des dates de passages à
+l'hôpital. Il faut noter qu'il y a bien plus de pathologies dans les colonnes
+que dans les événements. Or, les colonnes correspondants à des pathologies qui
+n'ont aucun événement sont systématiquement nulles.
+
+```{r}
+mat_even <- d %>%
+    select(BLOOD0_2ANEMIA_IRON:STATE2_DECES)
+
+not_in_event <- !colnames(mat_even) %in% levels(d$event)
+colnames(mat_even)[not_in_event]
+
+mat_even[, not_in_event] %>% sum()
+```
+
+Inversement, les deux événements qui n'ont pas de colonne correspondante sont
+
+```{r}
+levels(d$event)[!levels(d$event) %in% colnames(mat_even)]
+```
+
+
+## `date0_pathol1` `age_pathol1`
+
+Concernant les variables âge et date de la première pathologie, il apparait
+qu'ils ont recalculés comme suit :
+
+```{r}
+p1 <- d %>%
+    filter(
+        id %in% sample(id, 1e3),
+        !event %in% c(
+            "STATE2_DECES", "STATE2_PDV", "STATE1_NO_PATHOL1",
+            "STATE1_DEP_PHYSIQUE"
+        )
+    ) %>%
+    mutate(
+        bday = ymd("2008-01-01") - days(round(365.25 * age_20080101)),
+        age_pathol = interval(bday, date_event) / years(1)
+    ) %>%
+    group_by(id) %>%
+    summarize(
+        date0_pathol1 = min(date_event),
+        age_pathol1 = age_pathol[which.min(date_event)],
+        .groups = "drop"
+    )
+
+d %>%
+    select(event, date_event, date0_pathol1, age_pathol1, id) %>%
+    mutate(across(date0_pathol1, ~ mdy(as.character(.)))) %>%
+    right_join(p1, by = "id", suffix = c("", "_new")) %>%
+    filter(date0_pathol1 != date0_pathol1_new) %>%
+    nrow()
+```
+
+Or lorsqu'on compare les ages à la première pathologie, ils diffèrent
+régulièrement, généralement d'un jour environ.
+
+```{r}
+d %>%
+    select(event, date_event, date0_pathol1, age_pathol1, id) %>%
+    mutate(across(date0_pathol1, ~ mdy(as.character(.)))) %>%
+    right_join(p1, by = "id", suffix = c("", "_new")) %>%
+    mutate(err_age = (age_pathol1 - age_pathol1_new) * 365.25) %>%
+    filter(abs(err_age) > 1) %>%
+    head(20) %>%
+    kable("latex")
+```
+
+Je me pose la question de si ces ages-là n'étaient pas calculés d'une autre
+manière. Je compare ainsi toutes les sources de l'âge disponibles :
+
+* la colonne `age_20080101` ;
+* la colonne `age_pathol1` ;
+* les colonnes avec les pathologies ;
+* la colonne `age_event`.
+
+Pour faire la comparaison, je réunis ces sources en une seule table.
+
+```{r}
+x <- d %>%
+    filter(id %in% sample(id, 10e3))
+
+age1 <- x %>%
+    transmute(id = id, date_event = ymd("20080101"), age = age_20080101) %>%
+    unique()
+
+age2 <- x %>%
+    filter(!is.na(date0_pathol1)) %>%
+    filter(!duplicated(id)) %>%
+    transmute(
+        id = id,
+        date_event = mdy(as.character(date0_pathol1)),
+        age = age_pathol1
+    ) %>%
+    unique()
+
+age3 <- x %>%
+    select(id, event, date_event, BLOOD0_2ANEMIA_IRON:STATE2_DECES) %>%
+    pivot_longer(
+        cols = BLOOD0_2ANEMIA_IRON:STATE2_DECES,
+        values_to = "age",
+        names_to = "event2"
+    ) %>%
+    filter(event == event2) %>%
+    select(id, date_event, age) %>%
+    unique()
+
+age4 <- x %>%
+    select(id, date_event, age = age_event) %>%
+    unique()
+
+ages <- bind_rows(
+    age_20080101 = age1,
+    age_pathol1 = age2,
+    pathol_mat = age3,
+    age_event = age4,
+    .id = "source"
+) %>%
+    arrange(id) %>%
+    mutate(bday = date_event - days(round(age * 365.25)))
+
+xx <- ages %>%
+    group_by(id) %>%
+    summarize(is_const = sd(bday) == 0, .groups = "drop")
+
+ages %>%
+    filter(id %in% sample(xx$id[!xx$is_const], 2)) %>%
+    kable("latex")
+```
+
+Je constate que dans la majorité des cas toutes les sources conduisent à la même
+date de naissance. Les exceptions sont peu nombreuses. La majorité des
+exceptions présentent un jour d'écart, en plus ce jour-là tombe le 31 décembre.
+L'autre source de l’écart est l'`age_pathol1` qui lui aussi peut conduire à des
+dates de naissance différentes.
+
+Comparons `age_20080101` et `age_pathol1` 
+
+```{r}
+ages %>%
+    filter(source %in% c("age_20080101", "age_pathol1")) %>%
+    pivot_wider(
+        id_cols = id,
+        names_from = source,
+        values_from = bday
+    ) %>%
+    filter(age_20080101 != age_pathol1) %>%
+    kable("latex")
+```
+
+Enfin de compte des écarts sont assez rares, et surtout, dans la majorité des
+cas `age_pathol1` survient plus tard, ce qui me conduit à conclure qu'il n'est
+pas calculé sur le même événement. 
+
+## `annee_event`, `age_event`
+
+Le calcul de l'année et âge de l'événement parait trivial, or j'identifie
+des écarts ! Ces écarts concernent ~30 lignes (sur ~400k) donc je les considère
+que ce sont des cas aberrants. (le nombre exact des écarts dépend de
+l'échantillon choisi).
+
+```{r}
+d %>%
+    filter(id %in% sample(id, 10e3)) %>%
+    transmute(
+        date_event = date_event,
+        age_event = age_event,
+        anee_event = annee_event,
+        annee_event2 = year(date_event),
+        bday = ymd("2008-01-01") - days(round(365.25 * age_20080101)),
+        age_event2 = interval(bday, date_event) / years(1),
+        err_anee = annee_event2 - as.numeric(annee_event),
+        err_age = age_event2 - age_event
+    ) %>%
+    filter(err_anee != 0 | abs(err_age) > 1) %>%
+    nrow()
+```
+
+
+## `t_last`, `time1`, `time2`
+
+```{r}
+d %>%
+    filter(id %in% sample(id, 10e3)) %>%
+    mutate(
+        bday = ymd("2008-01-01") - days(round(365.25 * age_20080101))
+    ) %>%
+    group_by(id) %>%
+    summarize(
+        bday = head(bday, 1),
+        # time1 = ymd("2008-01-01"),
+        time2 = max(date_event),
+        .groups = "drop"
+    ) %>%
+    mutate(
+        time1 = interval(bday, ymd("2008-01-01")) / years(1),
+        time2 = interval(bday, time2) / years(1)
+    ) -> x
+
+d %>%
+    select(id, event, date_event, time1, time2, t_last) %>%
+    inner_join(x, by = "id", suffix = c("", "_new")) %>%
+    head(10) %>%
+    kable("latex") %>%
+    kable_styling(latex_options = "scale_down")
+```
+
+##  `event_censor`
+
+La variable `event_censor` indique si l'événement est à considèrer comme une
+censor. Elle permet nottamant d'identifier les décès imputés. Les décès observés
+et imputés sont tous les deux indiquées par `event == "STATE2_DECES"`, alors que
+les décès observés correspondent uniquement aux cas où
+`event == "STATE2_DECES" & event_censor == 0`. Pour conserver les deux visions,
+avec imputation et sans, l'on distangue deux bases `evenement` avec et sans
+imputations. Pour la version avec imputation il suffit d'ignorer la colonne
+`event_censor` et considèrer tout "STATE2_DECES" comme un vrai décès. Pour la
+version sans imputation, l'on remplace "STATE2_DECES" par "STATE2_PDV", pour
+les cas où `event_censor != 0`.
+
+Il est à noter qu'il semble que cette variable peut varier que pour
+"STATE2_DECES", "STATE2_PDV" et "CV1_PVD". L'interpretation est connue que pour
+la variable "STATE2_DECES". Pour "STATE2_PDV" il semblerait que `event_censor == 1`
+correspond à une vrai censure, alors que `event_censor == 2` correspond à une
+censure "artificiel" au 2012/12/31. Le cas
+`event_censor == 2 & event == "STATE2_PDV"` n'arrive que dans la base "imputé",
+c'est à dire, la base censuré au 2012/12/31.
+
+The following code snipped is from `R/create_base_incidence.R` and
+defines the whether or not death is taken into account.
+
+```{R, eval = FALSE, include = TRUE}
+# Mise a jour de 09/11/2017 pour gestion des type deces
+obs_deces <- as.numeric(base[, "event_censor"])
+if (type_deces == "type_0") {
+    # selection des deces observes a l hopital
+    cond_type_dc <- (obs_deces == 0)
+} else if (type_deces == "type_1") {
+    # selection des deces observes a l hopital ou patients graves imputes
+    cond_type_dc <- ((obs_deces == 0) | (obs_deces == 1))
+} else if (type_deces == "type_2") {
+    cond_type_dc <- ((obs_deces == 0) | (obs_deces == 1) | (obs_deces == 2))
+} else if (type_deces == "type_3") { # 21/06/2018 QG Cas supplementaire pour gerer le deces de type 3
+    obs_deces <- as.numeric(base[, "event_censor_sp95"])
+    cond_type_dc <- ((obs_deces == 0) | (obs_deces == 1) | (obs_deces == 3))
+} else {
+    stop("Erreur de definition de la variable type_deces")
+}
+```
+
+Which seems to state the following :
+
+* `type_0` ~ `event_censor == 0`
+* `type_1` ~ `event_censor %in% c(0, 1)`
+* `type_2` ~ `event_censor %in% c(0, 1, 2)`.
+* `type_3` ~ `event_censor_sp95 %in% c(0, 1, 3)`
+
+As stated a bit further down, Quentin suggests that `type_3` is not kept,
+but it is not clear whether `type` 1 or 2 should be used for imputations.
+Just jugging from volumes `type_1` will not add enough imputations since
+there are very few lines with `event_censor == 1`.
+
+En conclusion, pour les décès observés ne garder que `event_censor == 0`
+et pour les décès imputés garder `event_censor %in% c(0, 1, 2)`.
+    
+Une autre evenement où `event_censor` peut avoir un impact c'est "CV1_PVD".
+Actuellement `event_censor` est ignoré vis-à-vis de cette variable.
+
+
+# Parcours données projet Quentin
+
+Dans cette section je détaille les retraitements que j'ai retrouvés dans le
+code source du projet précédent. Cette section sera surtout utile pour des
+échanges avec Quentin, les autres peuvent la sauter.
+
+J'ai pu établir l'ordre d'exécution suivant dans les fichiers :
+
+1. `scripts/0-init_analysis_fixe.R`
+1. `param/config_estim_nejm.R`
+1. `scripts/1.1-run_cox_incidence_qalydays.R`
+1. `R/run_save_cox_serie1.R`
+1. `R/clean_benchmark.R`
+1. `R/create_base_incidence.R`
+1. `R/cox_comp_risk.R`
+
+Le script "run_cox_incidence_qalydays" source les deux premiers fichiers, qui
+contient essentiellement de la configuration, puis exécuté la fonction
+"run_save_cox_serie1", qui a son tour appelle "clean_benchmark",
+"create_base_incidence" et "cox_comp_risk" avant de sauvegarder le résultat.
+
+Un des paramètres les plus importants, c'est le `type_deces` qui peut prendre
+les valeurs "type_0", "type_1", "type_2" et "type_3". "type_0" consiste à ne pas
+imputer les décès. Les autres types consistent à considérer que certaines
+pathologies vont quasi-certainement conduit à un décès et donc remplacent ces
+causes de sortie par un décès (imputent le décès pour le formuler autrement).
+La configuration conseillée par Quentin (à savoir "config_1") prend "type_0".
+Quentin m'a indiqué que **"type_3" n'est pas retenu**, il n'est pas clair qu'en
+est-il du "type_2".
+
+## `clean_benchmark`
+
+Cette étape applique quelques retraitements.
+
+1. attache la probabilité d'hospitalisation (via une jointure) =>
+**étape sauté**
+1. fait un ajustement de la variable "fdr_smoker" => **étape appliquée**
+1. applique la une "correction fumeur" => **étape sautée**
+1. applique une correction des poids => **étape sautée**
+1. met à jour la région => **étape appliquée**
+1. applique ajustement décès ("type_2") => **étape sautée**
+1. ajuste les dates de `STATE1_DEM_SEVERE` => **étape appliquée**
+1. filtrage de ligne en fonction du `date0_hopital` => **étape appliquée**
+
+## `create_base_incidence`
+
+Cette fonction prépare les données pour une analyse de type Cox. Plus
+précisément elle met les données sous la forme où il ne contient plus que les
+colonnes : "id", "time1", "time2", "status", "cause" et les covariables
+utilisées pour l'analyse à savoir "fdr_aud_cat3", "fdr_smoker",
+"fdr_obesity_cat3", "cp_dep".
+
+Des nombreuses règles sont appliquées pour décider lorsqu'un individu est
+considérée comme étant censuré, et pour définir l'intervalle d'observation.
+
+En tout, touts les retraitements définis ici **sont sautés**, car ils servent à
+définir les temps d'entrée, de sortie et le statut de sortie, ce que l'on peut
+redéfinir si besoin.
+
+1. ajuste la définition de la colonne `STATE2_DECES` en utilisant `event_sp95`,
+si le type décès retenu, c’est "type_3"
+1. (re)définit `age_pathol1` en excluant les issus en décès et dépendance
+1. définit `age_pathol1_cum2`/`age_pathol1_cum3` en excluant la
+première/deuxième pathologie et décès et dépendance (que lorsque l'issu étudiée
+est `age_pathol1_cum2`/`age_pathol1_cum3`)
+1. définit encore de beaucoup variables qui ne semblent pas être
+utilisées
+1. arrondit/tronque des valeurs numériques 
+1. définit de temps d'entrée de sortie et le statut de sortie (🤯)
+
+## `run_save_cox_serie1`
+
+En plus des fonctions citées ci-dessous des petits retraitements sont appliqués
+dans `run_save_cox_serie1`, que l'on liste ici.
+
+1. Initie deux grosses boucles :
+
+    - une sur l'ensemble des segments (les donnés sont divisées en segments de
+    département-sexe)
+    - l'autre sur les pathologies étudiées
+
+1. appelle `clean_benchmark` => **étape appliquée**
+1. ajoute la colonne `pathol1_classif`  => **étape sautée**
+1. ajoute les colonnes `event_censor` et `event_censor_sp95`, via jointure avec
+"ID_IMPUT0812_SPE95" => **étape sautée**
+1. appelle `create_base_incidence` => **étape sautée**
+1. applique le modèle de cox via un appel à `cox_comp_risk` => **étape sautée**
+

@@ -1,0 +1,2250 @@
+---
+title: Estimating Disease-Free Life Expectancy based on Clinical Data from the French Hospital Discharge Database 
+author:
+  - name: Oleksandr Sorochynskyi
+    affil: 1,3,*
+    orcid: 0009-0002-7511-7230
+  - name: Quentin Guibert
+    affil: 2
+    orcid: 0000-0002-4915-2422
+  - name: Frédéric Planchet
+    affil: 1,3
+    orcid: 0000-0003-4170-8016
+  - name: Michaël Schwarzinger
+    affil: 4,5
+    orcid: 0000-0002-0573-6856
+affiliation:
+  - num: 1
+    address: |
+      ISFA—SAF Laboratory,
+      Institut de Science Financière et d'Assurances (ISFA),
+      Laboratoire SAF EA2429,
+      University Lyon, Université Claude Bernard Lyon 1,
+      F-69366 Lyon, France
+  - num: 2
+    address: |
+      CEREMADE, Université Paris-Dauphine,
+      PSL University, CNRS,
+      75016 Paris, France
+  - num: 3
+    address: |
+      Prim'Act
+      Actuarial consulting firm,
+      42 avenue de la Grande Armée,
+      F-75017 Paris, France
+  - num: 4
+    address: |
+      Department of Prevention,
+      Bordeaux University Hospital,
+      33000 Bordeaux, France
+  - num: 5
+    address: |
+      University of Bordeaux,
+      INSERM, BPH, U1219,
+      I-prev/PHARES, certified team under Ligue Contre le Cancer,
+      CIC 1401,
+      33000 Bordeaux, France
+authorcitation: |
+  Sorochynskyi, O.; Guibert Q. ; Planchet, F.; Schwarzinger M.
+correspondence: |
+  oleksandr.sorochynskyi@primact.fr
+journal: risks
+type: article
+status: submit
+# simplesummary: |
+abstract: |
+  The development of health indicators to measure healthy life expectancy (HLE) 
+  is an active field of research aimed at summarizing the health of a population.
+  Although many health indicators have emerged in the literature as critical 
+  metrics in public health assessments, the methods and data to conduct this
+  evaluation vary considerably in nature and quality. Traditionally, health data
+  collection relies on population surveys. However, these studies, typically of 
+  limited size, encompass only a small yet representative segment of the population.
+  This limitation can necessitate the separate estimation of incidence and 
+  mortality rates, significantly restricting the available analysis methods. In
+  this article, we leverage an extract from the French National Hospital Discharge
+  database to define health indicators. 
+  Our analysis focuses on the resulting Disease-Free Life Expectancy (Dis-FLE) 
+  indicator, which provides insights based on the hospital trajectory of each
+  patient admitted to hospital in France during 2008-13. Through this research,
+  we illustrate the advantages and disadvantages of employing large clinical 
+  datasets as the foundation for more robust health indicators. We shed light on
+  the opportunities that such data offer for a more comprehensive understanding
+  of the health status of a population. In particular, we estimate age-dependent 
+  hazard rates associated with sex, alcohol abuse, tobacco consumption, and obesity,
+  as well as geographic location. 
+  Simultaneously, we delve into the challenges and limitations that arise when
+  adopting such a data-driven approach.
+keywords: |
+  health indicators; Healthy life expectancy; HLE;
+  Disability-Free Life Expectancy; Dis-FLE; Survival analysis; Cox Model;
+  National hospital discharge database.
+acknowledgement: |
+  The authors are grateful to Christian Robert (ISFA—SAF Laboratory) for
+  providing guidance on writing of this manuscript.
+# authorcontributions: |
+# funding: |
+# # None
+# institutionalreview: |
+# informedconsent: |
+# dataavailability: |
+# conflictsofinterest: |
+# # sampleavailability: |
+# # supplementary: |
+# #  The following supporting information can be downloaded at:  
+# #  \linksupplementary{s1}, Figure S1: title; Table S1: title; Video S1: title.
+# abbreviations:
+#   - short: HLY
+#     long: Healthy Life Years
+#   - short: DFLE
+#     long: Disability-Free Life Expectancy
+#   - short: Dis-FLE
+#     long: Disease-Free Life Expectancy
+#   - short: WHO
+#     long: World Health Organization
+#   - short: ICF
+#     long: International Classification of Functioning, Disability and Health
+#   - short: EHR 
+#     long: Electronic Health Records 
+#   - short: PMSI
+#     long: Programme de Médicalisation des Systèmes d'Information 
+#   - short: ICD-10
+#     long: International classification of diseases, 10th revision
+#   - short: INSEE 
+#     long:  National Institute of Statistics and Economic Studies 
+#   - short: ADL
+#     long: Activities of daily living
+#   - short: GALI
+#     long: Global activity limitation indicator
+bibliography: "MyLibrary.bib"
+# appendix: appendix.tex
+endnotes: false
+output: 
+  rticles::mdpi_article:
+    extra_dependencies: longtable, xcolor
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+\newcommand{\revM}[1]{{\color{red} #1}} 
+
+```{r setup, include = FALSE}
+# Pretty much all settings are loaded except for knit options
+source("R/options_visual.R")
+options(OutDec = ".")
+# The risks page width is too narrow for default sizes
+fig_width <- 0.9 * fig_width
+fig_height <- 0.9 * fig_height
+# Most plots don't need full width
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.width = fig_width * 0.667,
+  fig.height = fig_height * 0.667
+)
+
+# Set wide plots/figures
+# defult_chunk_hook <- knitr::knit_hooks$get("chunk")
+# knitr::knit_hooks$set(chunk = function(x, options) {
+#   # \begin{adjustwidth}{-\extralength}{}
+#   # \end{adjustwidth}
+#   y <- defult_chunk_hook(x, options)
+#   if (options$results == "asis" && !is.null(options$widetable)) {
+#     lines <- str_split(y, "\n")[[1]]
+#     lines2 <- map_chr(
+#       lines,
+#       \(l) {
+#         if (str_detect(l, coll("\\begin{longtable}"))) {
+#           l <- paste(l, "\\begin{adjustwidth}{-\\extralength}{}", sep = "\n")
+#         }
+#         if (str_detect(l, coll("\\end{longtable}"))) {
+#           l <- paste("\\end{adjustwidth}", l, sep = "\n")
+#         }
+#         l
+#       }
+#     )
+#     y <- paste(lines2, collapse = "\n")
+#   }
+#   return(y)
+# })
+```
+
+# Introduction
+
+Over the last century, life expectancies have significantly increased. However,
+this increase has also been accompanied by a rise in the duration of life spent
+in a state of dependency [@fries_aging_1980; @gruenberg_failures_2005]. This
+underscores the importance of health indicators, such as Healthy Life Expectancy
+(HLE), in monitoring the overall health of a population. HLE is an umbrella term
+for a family of health indicators that calculate the expected number of years
+lived in various health states.
+
+HLE are utilized at all levels of policymaking, from international to local.
+Organizations such as the World Health Organization (WHO) and the European
+Union (EU) incorporate health indicators---Healthy Life Expectancy (HALE) and
+Healthy Life Years (HLY), respectively--into their frameworks for assessing
+population health [@world_health_organization_world_2023;@bogaert_use_2018].
+Another example is Japan, which has prioritized health as a key policy
+objective in recent years [@abe_japans_2013].
+
+Despite the consensus on the importance of health indicators, no universally
+used definition of health emerged \cite[Chapter~1]{jagger_international_2020}.
+The complexity of defining a useful health concept and the multiplicity of
+existing health concepts and methods to calculate them are well-documented
+[@kim_review_2022]. However, one aspect appears to remain invariant: the use of
+surveys.
+
+Surveys are the main source of data on health status of a population
+\cite[Chapter~5]{jagger_international_2020}. Unlike mortality data, that are
+already available from national statistics agencies who collect it for
+administrative purposes, health data are harder to come by, and surveys provide
+the most readily available means of doing so. The use of survey data
+necessarily imposes limits on the data collected. For one, the cost of surveys
+limits the sample sizes. Constructing survey instruments to be comparable over
+large areas is challenging [@robine_creating_2003]. Moreover, self-evaluation
+of health which is influenced by various factors and can therefore be biased
+[@kempen_assessment_1996;@krause_what_1994;@peersman_gender_2012]. Finally,
+survey data also does not provide reliable mortality data.
+
+At the same time, the introduction of electronic health records (EHRs) and
+international diagnostic harmonization has enabled the collection of medical
+information across large populations, with datasets like the United States'
+National Hospital Care Survey, the United Kingdom's Hospital Episode Statistics
+database, and Denmark's National Patient Registry. In this paper, we focus on a
+subset of the French National Hospital Discharge database (Programme de
+Médicalisation des Systèmes d'Information). These data cover all hospital
+discharges from 2010 to 2013 for adults aged 50 and older, and cover, after all
+exclusions, 10 million unique patients. Each discharge contains the main
+discharge diagnosis, coded using ICD-10, a standardized international
+classification of diagnoses [@world_health_organization_international_2015], as
+well as some demographic information on the patient.
+
+We propose using such large clinical databases to construct health indicators.
+This proposed approach has many advantages for assessing the health status of a
+population. First, the use of standardized discharge diagnosis codes, like the
+ICD-10, simplifies and reinforces cross-regional and temporal comparisons.
+Second, involvement of healthcare professionals in diagnosis minimizes biases
+associated with self-assessment. As the entire population is included, the
+database can provide a longitudinal view over a lifetime of diagnoses to create
+a comprehensive health picture. Finally, the individual-level data that
+contains information on both morbidity and mortality avoids the need for
+aggregating and allows for more nuanced analysis, promising a more profound
+view of health.
+
+Nonetheless, the clinical view of health has inherent limitations. First, a
+clinical view of health corresponds necessarily to a negative concept of
+health, considered inadequate by some
+\cite[Chapter~1]{jagger_international_2020}. In clinical settings, the focus is
+diagnosis and treatment, not holistic health assessment. This divergence yields
+several notable consequences [@euro-reves_selection_2000]. For instance,
+preventive measures can avert certain conditions without the need for formal
+diagnosis. Another concern associated with the clinical perspective is its
+reliance on healthcare access levels [@sanders_measuring_1964]. Moreover, the
+same diagnosis can have varying effects on different individuals. A disease may
+or may not lead to impairment or disability. For example, two people
+experiencing a stroke may face different outcomes, a subtlety that may not be
+accounted for by diagnoses alone. Finally, clinical data represents only a part
+of the population. Therefore, producing estimates representative of the general
+population is challenging and requires additional assumptions to correct the
+selection bias causes by the hospital admission. Even with these limitations we
+believe clinical data can provide a complimentary view of population health.
+
+<!--
+A Section on litterature (may be needed)
+But I'm not sure what I want to say with this parapgrah, other than look,
+I've done my litterature reveiw.
+
+There have een previous works on the limitation of the widely adapted methods of
+calculating health indicators. @ imai_estimation_2007 notes that multi-state
+life tables allow for more flexibale analyusis (than sullivans' method), buut
+thet data requirements are substantially higher. In that vein, there are
+studies that useed lare survays that contained helath information.
+@cho_estimating_2022 use the large NHIS (National Health interview survey) to
+estimate the link between  self --rated health and survival. But do not
+estabilish health indicators as such. @head_socioeconomic_2019 adn
+@stenholm_body_2017 studied the link between Dis-FLE and socioconmic status and
+BMI. THese studies are based on survesy from ENgland, Finland, France and
+Sweeden that mostly cover profesional population of moderate size (89 467
+participants combined). Numerous studies user even smaller surveys, but still
+are able to use multi-state table methods. 
+
+@crouzet_differences_2021 used the XYZ survey that covers entire France to study HLY for
+France at the department level. They also analyze some determinants of HLY,
+as in wheather it is pshisical or mental disability that caused people to
+feel limited. Overall this study has da diferent goal of understanding what
+distinguishes French departments vis-à-vis health.
+-->
+
+
+In this paper, we develop a novel approach to constructing health indicators
+from the family of Disease-Free Life Expectancy-type indicators using clinical
+data. Most literature using Dis-FLE focuses on a family of diseases:
+@lagstrom_diet_2020 focuses on cardiometabolic disease, while
+@head_socioeconomic_2019 and @stenholm_body_2017 focus chronic conditions such
+as cardiovascular disease, stroke, cancer, respiratory disease, and diabetes.
+We aim to broaden the considered diseases even further by simultaneously
+considering a wide range of diseases that can lead to severe health
+deterioration or mortality. This approach helps mitigate bias associated with
+tracking a single specific condition to assess changes in health status. The
+obtained Dis-FLE indicator is then compared to HLY.
+
+A second contribution of this paper is to utilize information from clinical
+data to assess variations in Dis-FLE based on different risk factors. In
+contrast with the traditional Sullivan's method, our approach based on
+individual data and a Cox model is able to assess the effect of different
+covariates. To do so, we consider the age-dependent impact of sex, behavioral
+risk factors, and the interactions thereof. We also take into account the
+region of residence. In doing so, we can not only present an estimate of
+Dis-FLE for each stratum but to gauge to some extent its main determinants.
+
+The rest of this paper, is structured as follows. Section \ref{sec:data} 
+introduces the data used. Section \ref{sec:stat_methods} describes the
+statistical methods used to construct health indicators. The results are
+presented in Section \ref{sec:results}, which is broken into three subsections.
+Section \ref{sec:hly} presents the Dis-FLE estimations, and compares them to
+HLY. Section \ref{sec:cox} analyzes Dis-FLE determinants using a Cox model.
+Section \ref{sec:discuss} concludes by providing a discussion of the approach
+and the results.
+
+
+
+# Data \label{sec:data}
+
+## Description
+
+This study uses a subset of the French National Hospital Discharge database,
+PMSI, that covers 2010 to 2013. These data cover all hospital visits in
+Metropolitan France during the observation period. Only hospital stays of
+people ages 50 and up are included in this subset. For this age category, over
+75% of the general population appear in the database. These data were
+previously used in @schwarzinger_contribution_2018 and
+@schwarzinger_etude_2018. The first references provides the ICD-10
+(International Classification of Diseases, 10th Revision) codes which were used
+to identify conditions as well as some risk factors. The second reference is
+however in French, we therefore include a brief description here.
+
+For each patient, the data include a series of discharge dates and the
+associated diagnosis. These enable us to track individual health trajectories
+over time. A severe condition in this study should be understood as a medical
+syndrome encompassing multiple diseases or evolving stages with a high risk of
+disability or death. A typical example of a severe condition is 'dementia,'
+which includes Alzheimer's disease and related conditions, i.e., all causes of
+cognitive loss of autonomy [@schwarzinger_etude_2018]. The notion of
+disease-free used in this paper is based on these severe conditions.
+
+Some exclusion criteria are applied to construct health indicators relative to
+a healthy population, in terms of the selected conditions. These criteria are 
+adapted from @schwarzinger_etude_2018. Firstly, we exclude patients observed 
+for any of the severe conditions used to define the healthy population during
+the period 2008-2010. Here, we assume that individuals within the general 
+population that did not appear in a hospital during this 2-year period for any
+of the selected conditions, whether for an initial consultation or follow-up
+for a chronic disease, are in good health, i.e., they are not affected by the
+consequences of these conditions. Thus, this procedure allows us to obtain, as
+of January 1, 2010, a selected population without any history of severe
+conditions for over 2 years. Additionally, we exclude 914,595 individuals
+hospitalized from 2008 to 2013 for certain chronic conditions (e.g., birth
+defects, HIV infection, psychiatric disorders, etc.) In this regard, we observe
+that 375,579 (41%) of these individuals are already included in the first
+exclusion group. After exclusions, data include almost 30 million hospital
+visits and over 10 million unique individuals over the observation period, see
+Table \ref{tab:filters-schwarz} for the details of the exclusion criteria.
+
+Table \ref{tab:individu-cols} describes the information available for
+individual patients. Basic demographic information is available : year of
+birth, sex and approximate place of residence, i.e., the departement of
+residence among the 96 official French administrative departments over the
+period 2008-2013. To enable the estimation of regular survival functions, a
+fictitious birthdate is imputed for each patient. Three lifestyle risk factors
+are inferred from hospital data and prior diagnoses : active tobacco smoking,
+alcohol use disorders and obesity (body-mass index $\geq$ 30 kg/m$^2$). Each
+risk factor is classified into 3 categories : 0, 1 and 2; 0 being the absence
+of risky behavior [@schwarzinger_contribution_2018]. It should be noted that
+alcohol or tobacco consumption is defined based on medical codes rather than on
+patients' self-reporting. Therefore, these variables capture a relatively
+severe exposure to these factors. Information on education levels and
+immigration status is a commune-level proxy (i.e., it represents the
+education/immigration levels of the commune of residence not of the individual)
+based on INSEE data. Individual-level information is collected on the first
+hospital visit, and is assumed to be constant over time.
+
+<!--
+The data contain individual but anonymized information. Identifying
+information such as dates of birth and of hospital visits have had been
+jittered and rounded, but this should not impact inference as the noise added
+is independent of outcome and covariates. This does result however in round
+values being more common, which manifests as oscillations in survival curves.
+-->
+
+```{r}
+col_desc <- tribble(
+  ~`Column`, ~col, ~`Precision`, ~`Possible values`, ~`Description`,
+  "ID", "id", "individual", "positive integers", "Anonymized identifier",
+  "Alcohol", "fdr_aud_cat3", "individual", "0, 1, 2",
+  "Alcohol use disorder, grouped into three classes in increasing order: '0' for the absence of Alcohol use disorder, '1' for mental and behavioural disorders due to former or current chronic harmful use of alcohol (ICD-10: F10.1–F10.9, Z50.2) including alcohol abstinence (ICD-10: F10.20–F10.23), '2' chronic diseases attributable to alcohol use disorders (e.g., WernickeKorsakoff syndrome, end-stage liver disease and other forms of liver cirrhosis, epilepsy, and head injury)",
+  "Obesity", "fdr_obesity_cat3", "individual", "0, 1, 2", "Obesity, grouped into three classes in increasing order: '0' boby mass < 30 kg/m$^2$, '1' boby mass $\\geq$ 30 kg/m$^2$ and
+  < 40 kg/m$^2$, '2' boby mass $>$ 40 kg/m$^2$.",
+  "Smoker", "fdr_smoker_cat3", "individual", "0, 1, 2", "Smoking, grouped into three classes in increasing order : '0': no disorder due to tobacco use recorded, '1': mental and behavioral disorders due to tobacco use (ICD-10: F17), '2':
+  mental and behavioral disorders due to tobacco use (ICD-10: F17) and Chronic Obstructive Pulmonary Disease (ICD-10: J44.9).",
+  "Department", "dep", "individual", "`01' to `96'", "Department of residence (Metropolitan France)",
+  "Immigration", "immigration", "postal code", "0, 1, 2, 3", "Proportion of foreign nationals, grouped into quartiles, proxy for immigration status",
+  "Education", "diplome", "postal-code", "0, 1, 2, 3", "Proportion population with higher education, grouped into quartiles, proxy for education",
+  "Sex", "sex", "individual", "`M' or `F'", "M:male, F:female",
+  "Year of birth", "annee_naissance", "individual", "integer", "Year of birth",
+)
+
+col_desc %>%
+  select(-col) %>%
+  kable(
+    "latex",
+    label = "individu-cols",
+    caption = c("Description of individual patient data."),
+    booktabs = TRUE,
+    escape = FALSE
+  ) %>%
+  kable_styling() %>%
+  column_spec(4, width = "16em")
+```
+
+We define disease-free as the absence of new events described in Table
+\ref{tab:pathol}. This choice is motivated by previous research on this
+dataset [@guibert_mesure_2018; @schwarzinger_etude_2018]. These previous works
+define disability much more narrowly, considering only two events, "Physical
+dependence" and "Severe dementia". Physical dependence is defined as bedridden
+state. @schwarzinger_etude_2018 established that this definition of disability
+aligns with severe disability as measured by activities of daily living (ADLs).
+In our study, we aim to broaden our definition of disability to encompass all
+identified severe events, bringing it closer to a less severe level of activity
+limitation, similar to the concept of Global Activity Limitation Instrument
+(GALI), the measure of disability used for HLY.
+
+The approach used to define disease-free in this study is distinctive, as it
+covers essentially all diseases that increase the risk of death. Indeed, this
+list almost exhaustively covers the various causes of death with 98% of the
+1\,774\,703 deaths in the hospital from 2008 to 2013 [@schwarzinger_etude_2018].
+Moreover, we believe that including such a wide range of diseases brings the
+resulting Dis-FLE closer to a general-notion of population health.
+
+It is worth noting that the list of events used to define disability employed
+in this study was not explicitly designed to mirror existing health measures,
+such as GALI. Instead, it represents the closest available approximation using
+this data, based on our knowledge. While this approach allows us to assess the
+merits of using clinical data, it is important to recognize that the indicator
+used may not capture the same aspects of health as existing health indicators.
+
+```{r}
+tar_read(pathology) %>%
+  filter(
+    n != 0,
+    pathol %in% c("1", "2"),
+    event != "STATE2_PDV",
+    !is.na(description)
+  ) %>%
+  # group_by(event = fct_lump_n(event, 30, n, other_level = "Other")) %>%
+  # summarize(n = sum(n), .groups = "drop") %>%
+  arrange(description_en == "Death", desc(n)) %>%
+  mutate(
+    n = number(n),
+    description_en = replace(
+      description_en,
+      description_en == "Death",
+      "Death from any cause"
+    )
+  ) %>%
+  select(
+    `Event description` = description_en,
+    `Number of events observed` = n
+  ) %>%
+  kable(
+    "latex",
+    align = c("l", "r"),
+    label = "pathol",
+    caption = paste(
+      "List of 36 severe conditions requiring hospital care and considered",
+      "incompatible with good health",
+      "and number of times the event was observed during the 2010-2013 period."
+    ),
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+  column_spec(1, width = "20em")
+```
+
+## Summary statistics \label{sec:stats}
+
+Table \ref{tab:demo_stats} gives summary statistics of the population under
+study. Women represent a larger proportion of the population, for two reasons.
+First, women tend to live longer and second, a higher proportion of women has
+visited hospitals.
+
+The exact age in years is used as the timescale for the analysis. The exact age
+is the number of years since birth, including the fractional part. Individuals
+are considered exposed from their 50th birthdays to the first adverse event,
+within the period from 2010 to 2013, the observation period.
+
+For all three risk behaviors over 85% of the population are
+in category 0, i.e., absence of any risk factor. This reflects the fact that
+risk factors represent relatively severe cases of each behavior. The
+immigration and education variables are grouped into quartiles.
+
+```{r}
+tar_read(health_demographic_statistics_table) %>%
+  pivot_wider(
+    id_cols = c(var, statistic),
+    names_from = sex,
+    values_from = c(value, value2, value3)
+  ) %>%
+  mutate(
+    statistic = if_else(
+      str_detect(statistic, "^(Cat|Quar)"),
+      paste(statistic, "(% of pop.)"),
+      statistic
+    ),
+    var = case_when(
+      var == "fdr_smoker_cat3" ~ "Smoking",
+      var == "fdr_aud_cat3" ~ "Alcohol",
+      var == "fdr_obesity_cat3" ~ "Obesity",
+      var == "immigration" ~ "Immigration",
+      var == "diplome" ~ "Education",
+      var == "exposure" ~ "Exposure (years)",
+      TRUE ~ var,
+    )
+  ) %>%
+  gt(
+    rowname_col = "statistic",
+    groupname_col = "var",
+    caption = "\\label{tab:demo_stats}Descriptive statistics of information
+        available for the analysis."
+  ) %>%
+  tab_header(
+    title = "Demographic sumamry statistics"
+  ) %>%
+  fmt(
+    columns = starts_with("value"),
+    rows = statistic == "Median (IQR)",
+    fns = number_format(0.1)
+  ) %>%
+  fmt(
+    columns = starts_with("value_"),
+    rows = statistic == "n",
+    fns = number_format(1)
+  ) %>%
+  fmt(
+    columns = starts_with("value_"),
+    rows = str_detect(statistic, "^(Category|Quartile)"),
+    fns = number_format(1)
+  ) %>%
+  fmt(
+    columns = starts_with("value2"),
+    rows = str_detect(statistic, "^(Category|Quartile)"),
+    fns = percent_format(0.1, suffix = "\\%")
+  ) %>%
+  cols_merge(
+    rows = statistic != "n",
+    columns = c(value_F, value2_F, value3_F),
+    pattern = "<<{1}>> (<<{2}>><<—{3}>>)"
+  ) %>%
+  cols_merge(
+    rows = statistic != "n",
+    columns = c(value_M, value2_M, value3_M),
+    pattern = "<<{1}>> (<<{2}>><<—{3}>>)"
+  ) %>%
+  cols_merge(
+    rows = statistic != "n",
+    columns = c(value_B, value2_B, value3_B),
+    pattern = "<<{1}>> (<<{2}>><<—{3}>>)"
+  ) %>%
+  cols_merge(
+    rows = statistic == "n",
+    columns = c(value_F, value2_F, value3_F),
+    pattern = "<<{1}>>"
+  ) %>%
+  cols_merge(
+    rows = statistic == "n",
+    columns = c(value_M, value2_M, value3_M),
+    pattern = "<<{1}>>"
+  ) %>%
+  cols_merge(
+    rows = statistic == "n",
+    columns = c(value_B, value2_B, value3_B),
+    pattern = "<<{1}>>"
+  ) %>%
+  cols_align(
+    align = "auto",
+    columns = starts_with("value")
+  ) %>%
+  cols_width(
+    statistic ~ px(150),
+  ) %>%
+  tab_stub_indent(
+    rows = everything(),
+    indent = 5
+  ) %>%
+  opt_align_table_header(align = "left") %>%
+  tab_spanner(
+    label = "Sex",
+    columns = starts_with("value")
+  ) %>%
+  cols_move(value_B, after = value_M) %>%
+  cols_label(
+    value_F = "Female",
+    value_M = "Male",
+    value_B = "Entire population",
+  ) %>%
+  my_as_latex(float = TRUE)
+```
+
+Table \ref{tab:fdr_cor} shows correlations between presence of risk factors.
+Correlations for risk factors are calculated on the indicator variables for any
+category risk factor, i.e., category 1 and 2 risk factors are grouped together.
+For Education and Immigration, the numeric 0-based quartile is taken. All
+correlations are highly significant (p < 0.001), but most are small. There is a
+correlation between alcohol consumption and smoking. The correlation
+between immigration and education is hard to interpret as it is likely a
+reflection of postal codes rather than individuals.
+
+```{r}
+tar_read(health_risk_factors_cor) %>%
+  arrange(x, y) %>%
+  mutate(
+    cor = number(cor, 0.01),
+    pvalue = number(pvalue, 0.001),
+    sumr = sprintf("%s", cor)
+  ) %>%
+  pivot_wider(
+    id_cols = x,
+    names_from = y,
+    values_from = sumr
+  ) %>%
+  mutate(across(everything(), \(x) replace_na(x, ""))) %>%
+  gt(
+    rowname_col = "x",
+    caption = "\\label{tab:fdr_cor}Correlations between risk factors.
+        Only the presence of each risk factor is considered, ignoring
+        categories."
+  ) %>%
+  my_as_latex(float = TRUE)
+```
+
+
+# Methods \label{sec:stat_methods}
+
+## Statistical tools
+
+In our study, we employ two types of models: the Kaplan-Meier estimator
+for survival curves and the Cox proportional hazards model.
+See, for example, @klein_handbook_2016 for general background on survival
+models. The Kaplan-Meier estimator stratifies the
+population and calculates survival curves separately for each stratum.
+In contrast, the Cox model takes into account all available data and
+covariates simultaneously. Furthermore, the Cox model offers a method
+for estimating a survival curve based on the covariates in question.
+Both methods rely on the assumption that the censoring time is independent of
+both the exit time and the covariables.
+
+The Kaplan-Meier survival function estimator at time $t$ is given by :
+\begin{equation}
+\hat{S}(t) = \prod_{\{i:t_i \leq t\}} \left(1 - \frac{d_i}{n_i}\right),
+\end{equation}
+where:
+
+\begin{itemize}
+  \item $t_i$ is the observed event time for the $i^\text{th}$ observation,
+  \item $d_i$ is the number of non-censored events at $t_i$,
+  \item $n_i$ is the number of individuals at risk just before $t_i$.
+\end{itemize}
+
+To obtain stratum-specific survival curves the estimator is calculated
+independently for each subset of data.
+
+The Cox model, in contrast to Kaplan-Meier, is a regression model as it
+attempts to establish a link between covariables and the survival time. It does
+so by assuming that all observations share the same baseline hazard function,
+$\lambda_0(t)$, that is scaled by the covariables. The Cox model estimates the
+hazard function as :
+\begin{equation}
+\hat{\lambda}(t | \mathbf{X}) = \lambda_0(t) e^{\mathbf{X}\beta},
+\end{equation}
+where $\mathbf{X}$ is the design matrix and $\beta$ are Cox model coefficients.
+To obtain survival curve estimates, we also need to estimate the baseline hazard
+function $\lambda_0$ or equivalently its cumulative counterpart $\Lambda_{0}(t)
+= \int_0^t \lambda_0(u)\,du$. We use the Breslow estimate for the cumulative
+baseline hazard function :
+\begin{equation}
+\hat{\Lambda}_{0}(t) = 
+  \sum_{\{i : t_i \leq t\}}
+      \frac{\delta_i}{
+        \sum_{k \in \mathcal{R}_i} e^{\mathbf{X}_k\hat{\beta}}}.
+\end{equation}
+Here, $\delta_i$ represents the event indicator (1 if the event occurred, 0 if
+censored). The summation is performed over all events $i$ where exit time $t_i
+\leq t$. The denominator calculates the risk set contribution for observations
+still under risk at $t_i$, with $\mathcal{R}_i = \{j : t_j \geq t_i\}$ and
+$\hat{\beta}$ the maximum likelihood estimator of Cox model coefficients.
+Overall, for the Cox model, the survival function is estimated using
+\begin{equation}
+\hat{S}(t | \mathbf{x}) = \exp\left(-\int_0^t e^{\mathbf{x}\hat{\beta}} \, d\hat{\Lambda}_0(u)\right).
+\end{equation}
+This basic variant of the Cox model assumes that the conditional hazard
+functions are all proportional to a base hazard function, This assumption is
+not satisfied for these data. For this reason we use a variant of the
+model that allows the hazard ratio to vary over time, in this case age, thus
+reducing non proportionality $\lambda(t, \mathbf{X}) =
+\lambda_{0}(t)e^{\mathbf{X}\beta(t)}$ [@martinussen_dynamic_2006]. This
+procedure requires duplicating each observation for every change in
+$\beta(t)$. For this reason, instead of using every event time we choose a
+coarse grid of ages : steps of 2 years from 50 to 100. This results in
+step-function estimate for coefficients with time dependent effect. We use a
+natural spline basis to estimate $\beta(t)$. In the rest of the paper we refer
+to these time-dependent coefficients as age-dependent as age is the timescale
+used for this model. 
+
+Initial data wrangling is done in SAS. Further data treatment and analysis is
+done in R [@r_core_team_r_2022]. The Kaplan-Meier survival curves and Cox model
+was estimated using methods from the `survival` package
+[@therneau_package_2023]. The procedure `survSplit` from the `survival` package
+is used to split observations over time, as required to estimate age-dependent
+effects. The splines are implemented using `nsk` function from the same
+package. 
+
+
+## Statistical modeling
+
+We analyze health as a censored life duration without disease. Our estimation
+approach relies on the use of survival models. The observed individual
+disease-free life durations, denoted $T$, are subject to right censoring and
+left truncation linked to the observation period. The truncation and censoring
+dates are assumed to be independent of $T$. An important assumption that we
+make is that the conditions selected to define Dis-FLE are supposed to be
+severe enough to require hospital care. Thus, we consider that the information
+loss related to patients with these conditions but not observed in hospital
+induces limited bias.
+
+The duration studied is the disease-free survival which we define as the time
+between the start of the observation (either 2010/01/01 or the 50th birthday,
+whichever comes later) end the end of observation (either 2013/12/31 or date of
+death or censoring, whichever comes first). Censoring can be due to the end of
+the observation period on 2013/12/31 or due to being lost to follow-up. For
+Kaplan-Meier only sex is used to stratify the population, whereas for the Cox
+model uses many variables as covariables are used, as described in the end of
+this section. Both methods allow estimating survival curves.
+
+We view Dis-FLE as the expected value of the disease-free survival distribution
+conditional on attaining a certain age. The disease-free survival distribution
+can either be estimated using either Kaplan-Meier or Cox model. Formally, if
+$S$ is the estimate of the survival curve of $T$, then the restricted
+conditional expectation is $\text{Dis-FLE}(t) = \mathbb{E}(T-t | T > t)$, for
+$t \geq 50$, and can be calculated by
+$$
+\int_{t}^{t_{\text{max}}} \frac{S(u)}{S(t)}\, du,
+$$
+where $t_{\text{max}}$ is the maximum assumed age. We set
+$t_{\text{max}}$ to 100, the largest age in the INSEE age pyramid used
+in whole population adjustment (see Section \ref{sec:whole_pop_adj}).
+Setting a maximal age is one way of dealing with the fact that survival
+function does not reach 0 if the longest observation is censored.
+
+However, given that both survival function estimators are step functions, this
+formula reduces to a weighted sum. The formula used to calculate Dis-FLE is
+given by :
+$$
+\text{Dis-FLE}(t) =
+  \sum_{i : t_{(i)} \geq t} \frac{\hat{S}(t_{(i)})}{\hat{S}(t)}(t_{(i+1)} - t_{(i)}),
+$$
+where $t_{(i)}$ are the unique, ordered, non-censored exit times observed in the
+data, such that $t_{(1)} < t_{(2)} < \cdots < t_{(n)}$. We assume that this grid
+is sufficiently small so that we have $t_{(i)} = t$ for the first $i : t_{(i)}
+\geq t$. The first value of the Dis-FLE curve, $\text{Dis-FLE}(50)$, is the
+expected disease-free life duration at 50.
+
+We first calculate and present sex-specific survival curves estimated
+via Kaplan-Meier. We then calculate the corresponding $\text{Dis-FLE}(t)$
+for all ages $t \geq 50$. The main part of the analysis is done using a
+Cox proportional hazards model.
+
+The covariates used in the Cox model include sex, behavioral risk factors, and
+geographical information. All terms of the Cox model are described in Table
+\ref{tab:cox_terms}. Sex and all risk factors have age-dependent coefficients.
+Age-dependent coefficients are obtained by including in the model an
+interaction term between a natural spline as a function of age and the
+age-dependent effect. The main effects (i.e., without interaction with
+age-dependent spline) are not included because they would be colinear with the
+interaction effect. The relationship with age is modeled using cubic natural
+splines with 8 degrees of freedom, and with knots at the edges of observed
+values to prevent linear extrapolation at the extremes. The interaction terms
+are modeled as a constant offset of the main age-dependent effect.
+
+```{r}
+tribble(
+  ~term_group, ~term, ~age_dep, ~ref_value,
+  "Main effect", "Obesity", "Natural spline", "Category 0",
+  "Main effect", "Alcohol", "Natural spline", "Category 0",
+  "Main effect", "Tobacco", "Natural spline", "Category 0",
+  "Main effect", "Sex", "Natural spline", "Female",
+  "Main effect", "Department of residence", "Constant", "78 - Yvelines",
+  "Main effect", "Immigration level", "Constant", "1st quantile (lowest)",
+  "Main effect", "Education level", "Constant", "1st quantile (lowest)",
+  "Interaction", "Obesity * Alcohol", "Constant", "Both category 0",
+  "Interaction", "Obesity * Tobacco", "Constant", "Both category 0",
+  "Interaction", "Alcohol * Tobacco", "Constant", "Both category 0",
+  "Interaction", "Sex * Obesety", "Constant", "Female, category 0",
+  "Interaction", "Sex * Alcohol", "Constant", "Female, category 0",
+  "Interaction", "Sex * Tobacco", "Constant", "Female, category 0",
+) %>%
+  rename(
+    `Term` = term,
+    `Dependence on age` = age_dep,
+    `Reference value` = ref_value
+  ) %>%
+  group_by(term_group) %>%
+  gt(
+    caption = "\\label{tab:cox_terms}Terms used in the Cox model."
+  ) %>%
+  my_as_latex(float = TRUE)
+```
+
+
+We usually avoid discussions of p-values, or significance tests, for two
+reasons. First is practical, with such large data almost all comparisons
+detect significant differences. Second is conceptional, data analyzed
+exhaustively covers the studied population, therefore estimates are not
+subject to sampling error.
+
+40% of observed individuals are randomly reserved for model validation,
+which is shown in the Appendix. Indeed, the volume of data is more than
+sufficient to estimate the model described above, as can be seen from
+small standard errors of estimated coefficients.
+
+
+## Whole population adjustment \label{sec:whole_pop_adj}
+
+The Metropolitan French PMSI dataset analyzed in this article is limited to
+individuals who have been hospitalized at some point, forming a
+non-random sample of the broader French population. Consequently, any
+calculations Dis-FLE within this sub-population yield a biased estimate of
+the true general population indicator, rendering direct comparisons
+impractical. To make a meaningful comparison with HLY, we make the
+assumption that individuals not observed in PMSI are in good health and
+adjust the exposure accordingly.
+
+This disparity is not surprising given the substantial number of individuals
+who have never been hospitalized. In 2010, France had 22.5 million individuals
+aged 50 and over[@insee_situation_2022], but only 10.5 million observed in
+hospital and included in this study after various exclusions. Indeed,
+hospitalization introduces selection bias that needs to be corrected. There are
+two distinct and opposite sources of bias :
+
+1. the population included in the PMSI is, on average, in worse health than the
+general population since they required hospitalization and
+2. exclusions applied to the original PMSI data should result in a study
+population that is healthier than the PMSI population.
+
+Of these two effects the first one is stronger, and is the one we attempt to
+correct using this adjustment.
+
+Let $l_{x,k}$ represent the population aged $x$ on January the 1st of year $k$.
+The adjustment is made by introducing $l_{2010-c,2010}^\text{INSEE} -
+l_{2010-c,2010}^\text{PMSI}$ artificial data points without any disease,
+corresponding to individuals not observed in the PMSI on 2010/01/01, for each
+observed cohort $c$ (year of birth) and separately for each sex, notation
+notwithstanding. These individuals are then censored at the end of years 2010
+through 2013 as needed to align the exposure with INSEE data.
+
+It's important to note that the assumption on which this adjustment is
+made---that individuals not present in the PMSI database are alive and in good
+health---is not universally satisfied : (1) it disregards the subpopulation
+initially included in PMSI but later excluded for this study, and (2) it does
+not account for rare events missed by PMSI. The first point is handled by
+scaling the observed population size, $l_{2010-c,2010}^\text{PMSI}$, to the
+pre-exclusion levels before calculating by how much the exposure needs be
+increased to match the entire French population. This done to avoid re-adding
+the excluded population back in as healthy observations. The scaling factor
+corresponds to a 40% increase and is simply the ratio between the population
+before exclusions and after : $18\,440\,022 / 13\,170\,355 \approx 1.40$, both
+values come from Table \ref{tab:filters-schwarz}. The use of the scaling factor
+is a simplification as it assumes that the exclusions had proportionally the
+same effect on all ages. The search for an adjustment to correct the selection
+bias caused by the use of clinical data is a delicate topic that is outside the
+scope of this paper. The second point cannot be handled easily.
+
+It's essential to emphasize that this adjustment can only be applied when
+considering sex as the sole covariate. We cannot employ this adjustment for the
+Cox model since we lack individual-level information on covariates for the
+entire population. Therefore, Cox model should be interpreted as estimating the
+risk relative to the hospitalized population.
+
+
+```{r, eval = FALSE}
+# Aid for above numbers
+tar_read(insee_age_pyramid) %>%
+  filter(age >= 50, annee == 2010) %>%
+  summarize(sum(pop))
+
+tar_read(comparaison_pop_pmsi_gen) %>%
+  filter(cohort == 1954, sex == "F") %>%
+  mutate(missing = pop_insee - pop_pmsi)
+
+tar_read(comparaison_pop_pmsi_gen) %>%
+  group_by(age, sex) %>%
+  summarize(
+    across(starts_with("pop"), sum),
+    .groups = "drop"
+  ) %>%
+  ggplot() +
+  aes(
+    x = age,
+    y = pop_pmsi / pop_insee,
+    group = sex,
+    color = sex
+  ) +
+  geom_line()
+```
+
+```{r, eval = FALSE}
+compar_hly <- tidy_surv(tar_read(surv_health)) %>%
+  group_by(strata) %>%
+  reframe(
+    age = c(50, 65),
+    hly = surv_time(time, surv, age, maxtime = 100) - age
+  ) %>%
+  mutate(
+    Method = "Dis-FLE",
+    age = age,
+    sex = str_extract(strata, "sex=([FM])", group = 1),
+    strata = NULL,
+    .before = everything()
+  )
+
+hly <- tar_read(eurostat_hly) %>%
+  filter(
+    unit == "YR",
+    indic_he %in% c("HLY_50", "HLY_65"),
+    geo == "FR",
+    year %in% 2010:2013,
+    sex != "T"
+  ) %>%
+  arrange(unit) %>%
+  mutate(age = as.integer(str_extract(indic_he, "HLY_([0-9]{2})", 1))) %>%
+  group_by(sex, age) %>%
+  summarize(hly = mean(hly), .groups = "drop") %>%
+  mutate(
+    Method = "HLY",
+    age = age,
+    .before = everything()
+  )
+
+bind_rows(
+  compar_hly,
+  hly
+) %>%
+  mutate(
+    sex = if_else(sex == "F", "Women", "Men"),
+  ) %>%
+  pivot_wider(
+    id_cols = c(age, sex),
+    values_from = hly,
+    names_from = Method
+  ) %>%
+  arrange(age, sex) %>%
+  group_by(age) %>%
+  rename(
+    Sex = sex,
+    Age = age
+  ) %>%
+  mutate(diff = HLY - `Dis-FLE`, diff_rel = diff / HLY)
+```
+
+# Results \label{sec:results}
+
+## Dis-FLE and comparison to Eurostat's HLY \label{sec:hly}
+
+We estimate Dis-FLE using Kaplan-Meier survival curve estimates on the data
+adjusted for the whole population. The data allow us to calculate the entire
+survival curve and Dis-FLE for each age. Figures
+\ref{fig:health-adj-surv-curve-nocov} and
+\ref{fig:health-adj-expect-curve-nocov} show the survival curves and Dis-FLE
+with the adjustment for the whole population. Life duration in good health is
+significantly larger with than without the whole population adjustment (see
+Figures \ref{fig:health-surv-curve-nocov} and
+\ref{fig:health-expect-curve-nocov} in the Appendix for the unadjusted curves).
+
+Overall, Dis-FLE steadily decreases from 50 to about 80, before stabilizing from
+about 80 to 90, and continues to decrease thereafter. Seeing the entire curve
+reveals an interesting pattern : the sex gap between Dis-FLE starts at about 5
+years at 50, and decreases to 0 at 80. Dis-FLE for men and women stays
+essentially the same thereafter. Dis-FLE without whole population adjustment
+(Figure \ref{fig:health-expect-curve-nocov} in the appendix) does display a
+proportionally consistent sex gap; therefore, the closing of the sex gap
+observed in Figure \ref{fig:health-adj-expect-curve-nocov} is due to the
+whole-population adjustment. There is a higher proportion of men than women who
+never enter a hospital. Therefore, the adjustment adds more healthy men than
+healthy women, thus having a favorable impact for Dis-FLE for men, relative to
+women. However, this observation is difficult to interpret and requires further
+investigation in future research. For this reason, we focus on the Cox model for
+the hospitalized population only.
+
+
+```{r, eval = FALSE}
+# Check realtive sizes of adjustment
+# When looking at ratio F/M of the absolute differences in population
+# very clear partern : ~ 1 until 80 then a significant decrease
+# When looking at ratio F/m fo the ratio of population
+# a cubic patern : rise util 60 (~1) fall until 80 (~.9) and rise thereafter
+# From 60 upwards there are relatively more men then women added to the dataset
+tar_read(comparaison_pop_pmsi_gen) %>%
+  filter(age <= 95) %>%
+  mutate(diff = pop_insee / pop_pmsi) %>%
+  pivot_wider(
+    id_cols = c("year", "age", "cohort"),
+    names_from = "sex",
+    values_from = diff
+  ) %>%
+  mutate(
+    r = F / M
+  ) %>%
+  ggplot() +
+  aes(
+    x = age,
+    y = r,
+    color = cohort,
+    group = cohort
+  ) +
+  geom_line()
+```
+
+
+```{r, fig.cap = "\\label{fig:health-adj-surv-curve-nocov}Survival curves of being without disease for the general population aged 50 and up, by sex."}
+tidy_surv(tar_read(surv_health_adj)) %>%
+  ggplot() +
+  aes(
+    x = time,
+    y = surv,
+    ymax = 1.001 * upper,
+    ymin = 0.999 * lower,
+    color = str_sub(strata, 5, 5),
+    group = str_sub(strata, 5, 5)
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_step() +
+  scale_y_continuous(labels = percent_format()) +
+  coord_cartesian(xlim = c(50, 100)) +
+  labs(x = "Age", y = "Probability of being in
+  good health", color = "Sex")
+```
+
+```{r}
+#| fig.cap = "\\label{fig:health-adj-expect-curve-nocov}
+#|     Conditional Dis-FLE adjusted for the whole French population, aged 50 and up, as a function of age and sex."
+tidy_surv(tar_read(surv_health_adj)) %>%
+  group_by(sex = str_sub(strata, 5, 5)) %>%
+  reframe(
+    ages = seq(50, 100, length.out = 50),
+    expect = surv_time(time, surv, x = ages, maxtime = 100) - ages,
+    expect_up = surv_time(time, upper, x = ages, maxtime = 100) - ages,
+    expect_dn = surv_time(time, lower, x = ages, maxtime = 100) - ages,
+  ) %>%
+  filter(ages < 100) %>%
+  ggplot() +
+  aes(
+    x = ages,
+    y = expect,
+    ymax = expect_up,
+    ymin = expect_dn,
+    group = sex,
+    color = sex
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_line() +
+  expand_limits(y = 0) +
+  labs(y = "Dis-FLE", x = "Age", color = "Sex")
+```
+
+
+To place the proposed Dis-FLE indicator into context of existing
+health indicators, we compare it to the closest available indicator,
+Eurostat's Healthy Life Years (HLY) for France over the same period
+[@eurostat_healthy_2020]. HLY's concept of health is based on a
+self-evaluation of long term activity limitation, as measured by
+GALI of the EU-SILC survey.
+
+HLY represents the expected life duration without long term activity
+limitation. This indicator was deliberately chosen to reflect the
+overall level of perceived ability, without attempting to identify the
+source of type of limitations. This allows it to be simple, and be
+widely applied, thus increasing coverage and allowing for comparisons
+between countries and over time [@robine_creating_2003]. 
+
+HLY is also the only comparable health indicator covering France in the
+observation period. Another candidate was the HALE indicator from Global Burden
+of Disease study for France, but it is not directly comparable to Dis-FLE-type
+indicators, as HALE assigns weights to different health states. Finally,
+previous articles using these data, [@guibert_mesure_2018;
+@guibert_mesure_2018-1], focused on similar Dis-FLE type indicator, but that
+took into consideration only a small number of severe diseases, resulting in
+significantly longer Dis-FLE.
+
+Table \ref{tab:hly-comparaison} compares Dis-FLE adjusted for the whole French
+population with HLY at ages 50 and 65. In general, Dis-FLE and HLY follow
+expected patterns, decreasing from age 50 to 65 for both genders. Women
+consistently exhibit higher Dis-FLE and HLY compared to men across all ages.
+However, at age 50, Dis-FLE is significantly lower than HLY for both genders.
+Furthermore, the sex gap is more pronounced in Dis-FLE. At 50, for Dis-FLE the
+female-male gap is 2 years larger than for HLY. At 65 the difference between
+sex gaps is smaller but still present at about 1 year.
+
+Assuming that the Dis-FLE estimates are indeed representative of the general
+population then the difference may be explained by the difference of perceived
+activity limitation as measured by GALI and their clinical state, as well as
+the exclusion of institutional households in the EU-SILC survey.
+
+```{r}
+compar_hly <- tidy_surv(tar_read(surv_health_adj)) %>%
+  group_by(strata) %>%
+  reframe(
+    age = c(50, 65),
+    hly = surv_time(time, surv, age, maxtime = 100) - age
+  ) %>%
+  mutate(
+    Method = "Dis-FLE",
+    age = age,
+    sex = str_extract(strata, "sex=([FM])", group = 1),
+    strata = NULL,
+    .before = everything()
+  )
+
+hly <- tar_read(eurostat_hly) %>%
+  filter(
+    unit == "YR",
+    indic_he %in% c("HLY_50", "HLY_65"),
+    geo == "FR",
+    year %in% 2010:2013,
+    sex != "T"
+  ) %>%
+  arrange(unit) %>%
+  mutate(age = as.integer(str_extract(indic_he, "HLY_([0-9]{2})", 1))) %>%
+  group_by(sex, age) %>%
+  summarize(hly = mean(hly), .groups = "drop") %>%
+  mutate(
+    Method = "HLY",
+    age = age,
+    .before = everything()
+  )
+
+bind_rows(
+  compar_hly,
+  hly
+) %>%
+  mutate(
+    sex = if_else(sex == "F", "Women", "Men"),
+    hly = number(hly, 0.1),
+  ) %>%
+  pivot_wider(
+    id_cols = c(age, sex),
+    values_from = hly,
+    names_from = Method
+  ) %>%
+  arrange(age, sex) %>%
+  group_by(age) %>%
+  rename(
+    Sex = sex,
+    Age = age
+  ) %>%
+  kable(
+    "latex",
+    label = "hly-comparaison",
+    caption = c("
+            Comparison of Eurostat's HLY at 50 and 65 for France to analogous
+            Dis-FLE calculated with the proposed health definition and method.
+            HLY value corresponds to the average of HLY from 2010 to 2013.
+            The entire Dis-FLE curve can be seen in Figure \\ref{fig:health-adj-expect-curve-nocov}.
+        "),
+    booktabs = TRUE
+  )
+```
+
+## Cox model inferences \label{sec:cox}
+
+In this section we analyze the data through a Cox model described in Section
+\ref{sec:stat_methods}. This model allows us to identify factors influencing
+health. Through this analysis, we illustrate the advantages of using clinical
+data. Similar analysis would not be possible with other data sources, either
+because they lack the necessary information (covariables) or volume.
+
+We present hazard ratios estimated for this Cox model, that is, $e^{\beta_j}$
+for the $j^\text{th}$ variable, rather than the model coefficient, $\beta_j$.
+For non-age-dependent effects we give the numeric value of the ratio in a
+table. For terms with age-dependent effects we show curves of ratios as a
+function of age.
+
+Overall, the available covariables have a large impact on healthy life
+duration, with behavioral risk factors having the largest impact, but that
+impact also decreases with age. Following risk factors in importance is sex,
+with men experiencing adverse events earlier than women, even after
+controlling for covariables. As with risk factors, the difference becomes
+smaller for later ages.
+
+In the following sections we examine one-by-one the effects of the risk
+factors, but first we want to get an overall idea of just how much the risk
+factors influence Dis-FLE.
+
+N.B. : the estimates of Dis-FLE and other quantities do not represent
+estimates for the general French population as the adjustment described in
+Section \ref{sec:whole_pop_adj} cannot be applied for the Cox model. 
+
+### Risk profiles
+
+Before delving into the individual impact of each variable, we first illustrate
+the collective discriminatory power of the model by examining survival curves
+and Dis-FLE for selected risk profiles. As will be seen later in this section,
+the presence of risk-increasing behaviors present (smoking, obesity, and alcohol
+consumption) is the determinant factor of Dis-FLE.
+Therefore, the risk profiles are simply the
+number of risk-increasing behaviors present (smoking, obesity, and alcohol
+consumption) :
+
+-   The "Lowest" risk profile, representing individuals without any risk
+    factors.
+-   The "Intermediate" risk profile, involving one risk-increasing
+    behavior.
+-   The "Highest" risk profile, featuring two risk-increasing behaviors.
+
+Figures \ref{fig:cox_f3_profile_surv_curves} and
+\ref{fig:cox_f3_profile_surv_time_curves} display survival curves and
+$\text{Dis-FLE}(t)$ estimated by the Cox model for these risk profiles. There
+are two curves for the "Lowest" risk profile, one for men and one for women,
+while the "Intermediate" and "Highest" profiles each include six curves, one for
+each combination of sex and one of the risk factors. Since these risk profiles
+are just groupings of covariables, they remain constant for each individual.
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f3_profile_surv_curves}
+#|    Survival curves for selected risk profiles, by sex,
+#|    with 95% confidence intervals.",
+#| fig.width = fig_width
+tar_read(cox_health_profiles_surv) %>%
+  filter(time < 50) %>%
+  ggplot() +
+  aes(
+    x = time + 50,
+    y = surv,
+    ymax = upper,
+    ymin = lower,
+    group = id,
+    color = profile
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_line() +
+  scale_color_viridis_d() +
+  facet_wrap(vars(sex)) +
+  labs(
+    x = "Age",
+    y = "Probability of being in
+          good health",
+    color = "Risk profile"
+  )
+```
+
+```{r, warning = FALSE}
+#| fig.cap = "\\label{fig:cox_f3_profile_surv_time_curves}
+#|    Conditional residual expectation for selected risk profiles, by sex,
+#|     with 95% confidence intervals.",
+#| fig.width = fig_width
+tar_read(cox_health_profiles_surv) %>%
+  group_by(id, sex, profile) %>%
+  reframe(
+    ages = seq(50, 100, length.out = 50),
+    expect = surv_time(
+      time + 50,
+      surv,
+      x = ages,
+      maxtime = 100
+    ) - ages,
+    expect_up = surv_time(
+      time + 50,
+      upper,
+      x = ages,
+      maxtime = 100
+    ) - ages,
+    expect_dn = surv_time(
+      time + 50,
+      lower,
+      x = ages,
+      maxtime = 100
+    ) - ages
+  ) %>%
+  ggplot() +
+  aes(
+    x = ages,
+    y = expect,
+    ymin = expect_dn,
+    ymax = expect_up,
+    group = id,
+    color = profile
+  ) +
+  geom_line() +
+  geom_ribbon(color = NA, alpha = 0.4) +
+  expand_limits(y = 0) +
+  scale_color_viridis_d() +
+  facet_wrap(vars(sex)) +
+  labs(
+    y = "Dis-FLE",
+    x = "Age",
+    color = "Risk profile"
+  )
+```
+
+The impact of risk behaviors on disease-free life duration is evident,
+with a substantial 10-year range in Dis-FLE at age 50 between the lowest
+and highest risk profiles. Having at least one risk-increasing behavior
+appears to be a key factor, reducing Dis-FLE by approximately 5 years. In
+the absence of such behaviors, sex emerges as the determining factor for
+Dis-FLE.
+
+It's worth noting that Dis-FLE curves may intersect for men and women in
+some risk profiles due to age-dependent coefficients in the Cox model.
+Additionally, these figures allow us to isolate the sex gap when other
+factors are equal. For instance, in the absence of risk factors at age
+50, the sex gap is approximately 2.5 years. However, with the presence
+of at least one risk factor, this gap diminishes to less than a year.
+This indicates that while behavioral differences contribute to the Dis-FLE
+sex gap, they do not entirely explain it.
+
+### Sex
+
+We now proceed to inspect the effect of each variable on the disease-free life
+duration one by one. We examine age-dependent hazard ratios. First variable
+analyzed is the sex of the individual. To take into account apparent
+non-proprotionality of hazard functions, the estimated hazard ratio of sex is
+allowed to vary with age and is modeled by a step function. All else being
+equal men have larger hazard than women, even when controlling for other
+covariates, as seen in Figure \ref{fig:cox_f1_tt1_effects_sex}. This difference
+is not constant over time, it starts off at about 30% excess hazard at 50, and
+rises steadily before attaining a maximum of almost 45% excess hazard at about
+70 years of age. The difference then declines to 5% at 100 years.
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f1_tt1_effects_sex}
+#|    Estimated age-dependent hazard ratio for sex.
+#|    Values above 1 increase hazard for males.
+#|    Gray areas are 95% pointwise confidence intervals."
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+  filter(sex != "F") %>%
+  mutate(
+    value = case_when(
+      fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+      fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+      fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+      sex != "F" ~ sex
+    )
+  ) %>%
+  ggplot() +
+  aes(
+    x = 50 + 2 * tgroup,
+    y = fit,
+    ymax = fit_up,
+    ymin = fit_dn,
+    xmin = 50 + 2 * tgroup,
+    xmax = 50 + 2 * (tgroup + 1),
+  ) +
+  # Fake step ribbon
+  geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+  geom_step() +
+  labs(x = "Age", y = "Hazard ratios for males (sex)")
+```
+
+Note that Figure \ref{fig:cox_f3_profile_surv_time_curves} illustrates the
+impact of sex on Dis-FLE while keeping other variables constant. From it, we
+see that in absence of risk factors Dis-FLE is 2.5 years lower for men than for
+women. In presence of at least one risk factor the difference is less than a
+year.
+
+### Behavioral risk factors
+
+We analyzed the effect of three risk factors :
+
+-   tobacco consumption,
+-   alcohol consumption,
+-   obesity.
+
+Each risk factor is grouped into three risk categories, 0, 1, and 2.
+Category 0 represents the absence of risk-increasing behavior and is
+taken as reference. Figure \ref{fig:cox_f1_tt1_effects_fdr} shows the
+age-dependent effects for these risk factors. All risk factors appear to
+have large negative impact on outcome. The impact of these risk factors
+appears to decrease with age.
+
+```{r}
+#| fig.cap = "\\label{fig:cox_f1_tt1_effects_fdr}
+#|    Estimated age-dependent hazard ratios for behavioral risk factors.
+#|    Values above 1 increase hazard.
+#|    Gray areas are 95% pointwise confidence intervals.",
+#| fig.width = fig_width
+tar_read(cox_tidy_tt_health_formula1_tt1) %>%
+  filter(sex == "F") %>%
+  mutate(
+    var = case_when(
+      fdr_obesity_cat3 != "0" ~ "Obesity",
+      fdr_aud_cat3 != "0" ~ "Alcohol",
+      fdr_smoker_cat3 != "0" ~ "Smoking",
+      sex != "F" ~ "Sex"
+    ),
+    value = case_when(
+      fdr_obesity_cat3 != "0" ~ fdr_obesity_cat3,
+      fdr_aud_cat3 != "0" ~ fdr_aud_cat3,
+      fdr_smoker_cat3 != "0" ~ fdr_smoker_cat3,
+      sex != "F" ~ sex
+    )
+  ) %>%
+  ggplot() +
+  aes(
+    x = 50 + 2 * tgroup,
+    y = fit,
+    ymax = fit_up,
+    ymin = fit_dn,
+    xmin = 50 + 2 * tgroup,
+    xmax = 50 + 2 * (tgroup + 1),
+    group = value,
+    color = value
+  ) +
+  # Fake step ribbon
+  geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+  geom_step() +
+  facet_wrap(vars(var)) +
+  labs(x = "Age", y = "Hazard ratio", color = "Category")
+```
+
+Category 2 alcohol abuse has the largest impact on health (although it also
+impacts the smallest population compared to other risk factors), followed by
+smoking and obesity. The hazard ratios for category 1 risk factors are
+substantially smaller. All hazard ratios decrease with age.
+
+### Multiple behavioral risk factors
+
+In our analysis, we investigated the combined impact of multiple risk
+factors. Given the extensive range of possible combinations involving
+category 1 and 2 risk factors, we specifically concentrated on the most
+prevalent interactions---those among category 2 risk factors.
+
+We find that multiple risk factors increases the overall risk. However, 
+the marginal increase in risk is less pronounced
+compared to the risk associated with each factor independently. This
+suggests a compensatory effect when multiple
+behavioral risk factors coexist. Notably, the combination of alcohol and
+smoking exhibits the highest compensatory ratio, followed by
+obesity-alcohol and obesity-smoking.
+
+Figure \ref{fig:cox-f1-tt1-effects-fdr-inter} visually represents the
+distinctions between :
+
+* the main effects,
+* the naive combined effect of two risk
+factors (calculated by multiplying the hazard ratios of the main effects
+without considering the interaction term),
+*  and the estimated effect that
+accounts for the interaction term.
+
+For all three combinations of risk factors the combined effect with interaction
+is lower than without it. These observations shed light on the nuanced
+interplay of risk factors and their collective influence on the overall hazard.
+
+```{r, eval = FALSE}
+tar_read(cox_tidy_health_formula1_tt1) %>%
+  select(term, estimate, std.error, p.value) %>%
+  filter(str_detect(term, "^fdr"), str_detect(term, ":fdr")) %>%
+  mutate(
+    var1 = str_extract(term, "^fdr_(.*)_cat3([012]):", group = 1),
+    val1 = str_extract(term, "^fdr_(.*)_cat3([012]):", group = 2),
+    var2 = str_extract(term, ":fdr_(.*)_cat3([012])$", group = 1),
+    val2 = str_extract(term, ":fdr_(.*)_cat3([012])$", group = 2),
+    across(starts_with("var"), \(x) case_when(x == "aud" ~ "alcohol", TRUE ~ x)),
+    inter = sprintf(
+      "Cat. %s %s and Cat. %s %s",
+      val1, var1, val2, var2
+    )
+  ) %>%
+  filter(val1 == 2, val2 == 2) %>%
+  mutate(across(where(is.numeric), number_format(0.01))) %>%
+  arrange(estimate) %>%
+  select(
+    `Interaction term` = inter,
+    `Hazard ratio` = estimate,
+    `Std. error` = std.error,
+    `p-value` = p.value
+  ) %>%
+  kable(
+    "latex",
+    label = "cox-f3-tt1-effects-fdr-inter",
+    caption = c("
+            Estimated hazard ratios for the presence of multiple category 2
+            behavioral risk factors, and associated standard errors and
+            p-values. All values significant.
+        "),
+    booktabs = TRUE
+  )
+```
+
+```{r}
+#| fig.cap = "\\label{fig:cox-f1-tt1-effects-fdr-inter}
+#|    Estimated age-dependent hazard ratios for two-way category 2 risk factors
+#|    combinations.
+#|    Each panel shows the interplay between two risk factors. For each panel,
+#|    the main age-dependent effect is shown for the risk factors, and the
+#|    combined effect with and without interaction are displayed.
+#|    The combined effect without interaction is simply the product of the
+#|    hazard ratios of the main effect. The combined effect with interactions
+#|    is the product of the main effects and the interaction term..
+#|    Values above 1 increase hazard.
+#|    Gray areas are 95% pointwise confidence intervals.",
+#| fig.width = fig_width,
+#| fig.height = fig_height * .9
+
+
+# Calculte what combinaition of two risk factorus would look like without the
+# interaction term
+inter_naive <- tar_read(cox_health_f1_tt1_inter_tt) %>%
+  select(var1, var2, val1, val2, times, fit, fit_up, fit_dn) %>%
+  filter(
+    (val1 == "2" & val2 == "0" | val1 == "0" & val2 == "2")
+  ) %>%
+  mutate(
+    across(c(var1, var2), \(x) {
+      case_when(
+        x == "fdr_smoker_cat3" ~ "Smoking",
+        x == "fdr_aud_cat3" ~ "Alcohol",
+        x == "fdr_obesity_cat3" ~ "Obesity",
+      )
+    }),
+  ) %>%
+  left_join(
+    .,
+    .,
+    by = c(
+      "times",
+      var2 = "var1", var1 = "var2",
+      val1 = "val1", val2 = "val2"
+    )
+  ) %>%
+  mutate(
+    fit = fit.x * fit.y,
+    fit_up = fit_up.x * fit_up.y,
+    fit_dn = fit_dn.x * fit_dn.y,
+    combo = sprintf("%s and %s", var1, var2),
+    category = "Combined effect w/o interaction term"
+  ) %>%
+  select(var1, var2, times, fit, fit_up, fit_dn, combo, category)
+
+
+tar_read(cox_health_f1_tt1_inter_tt) %>%
+  mutate(
+    across(c(var1, var2), \(x) {
+      case_when(
+        x == "fdr_smoker_cat3" ~ "Smoking",
+        x == "fdr_aud_cat3" ~ "Alcohol",
+        x == "fdr_obesity_cat3" ~ "Obesity",
+      )
+    }),
+    combo = sprintf("%s and %s", var1, var2),
+    category = case_when(
+      val1 == "2" & val2 == "0" ~ sprintf("%s only", var1),
+      val1 == "0" & val2 == "2" ~ sprintf("%s only", var2),
+      val1 == "2" & val2 == "2" ~ "Combined effect with interaction term",
+    ),
+  ) %>%
+  filter(
+    var1 <= var2,
+    val1 != "1",
+    val2 != "1",
+    !(val1 == "0" & val2 == "0"),
+  ) %>%
+  bind_rows(inter_naive) %>%
+  mutate(
+    category_label = str_wrap(category, 15),
+    category_label = fct_reorder(category_label, fit, max, .desc = TRUE),
+    combo = str_replace(combo, "\\band\\b", "and\n"),
+  ) %>%
+  filter(
+    combo %in% combo[category != "Combined effect w/o interaction term"]
+  ) %>%
+  ggplot() +
+  aes(
+    x = times,
+    y = fit,
+    ymax = fit_up,
+    ymin = fit_dn,
+    xmin = times,
+    xmax = times + 2,
+    group = category_label,
+    color = category_label,
+  ) +
+  # Fake step ribbon
+  geom_rect(aes(color = NULL), fill = "gray", alpha = 0.4) +
+  geom_step() +
+  facet_grid(cols = vars(combo)) +
+  labs(x = "Age", y = "Hazard ratio", color = NULL) +
+  expand_limits(y = 1) +
+  theme(legend.key.height = unit(1, "cm"))
+```
+
+### Behavioral risk factors conditional on sex
+
+We measure if risk factors impact men and women differently. To simplify
+the model we model this difference as an offset for males. Table
+\ref{tab:cox-f3-coefs-fdr-inter} gives the hazard ratios for the
+interaction terms between sex and behavioral risk factors. These ratios
+can be interpreted as additional burden of these risk factors on men,
+relative to women.
+
+Overall men appear to be slightly less sensitive to the presence of
+behavioral risk factors. This explains in part the reason for decrease
+in the Dis-FLE sex gap in presence of risk factors, as seen in Figure
+\ref{fig:cox_f3_profile_surv_time_curves}.
+
+We focus on category 2 behavioral risk factors because category 1 are
+rare or without substantial male-female differences. Category 2 alcohol
+consumption, has a substantially stronger impact on women, with women
+suffering additional 12% of hazard. Obesity also impacts women stronger,
+by about 7%; While men's health is slightly more sensitive to smoking.
+
+```{r}
+tar_read(cox_tidy_health_formula1_tt1) %>%
+  select(term, estimate, std.error, p.value) %>%
+  filter(
+    str_detect(term, "^fdr"),
+    str_detect(term, "sex"),
+    str_detect(term, ":"),
+    str_detect(term, "cat32")
+  ) %>%
+  mutate(
+    risk_factor = str_extract(term, "fdr_(.*)_cat", group = 1),
+    risk_factor = case_when(
+      risk_factor == "obesity" ~ "Obesity",
+      risk_factor == "aud" ~ "Alcohol",
+      risk_factor == "smoker" ~ "Smoking",
+    ),
+    term = NULL,
+    .before = everything()
+  ) %>%
+  select(
+    `Risk factor (Cat. 2)` = risk_factor,
+    `Hazard ratio` = estimate,
+    `Std. error` = std.error,
+    `p-value` = p.value,
+  ) %>%
+  mutate(across(where(is.numeric), number_format(0.001))) %>%
+  kable(
+    "latex",
+    label = "cox-f3-coefs-fdr-inter",
+    caption = c("
+            Hazard ratios for additional risk for men from behavioral
+            risk factors, with associated standard errors and p-values.
+            Only category 2 risk factors are shown.
+            "),
+    booktabs = TRUE
+  )
+```
+
+### Geographical
+
+Figure \ref{fig:cox-f3-coefs-dep} gives the hazard ratios relative to
+the Yvelines department (78). This reference was chosen because it is
+the Île-de-France region, while not being Paris itself.
+
+Northern departments have a markedly higher hazard rate, even after
+controlling for other covariates. South-east, and eastern departments on
+the other hand appear to have the inverse effect. Both these facts are
+in accord with previous literature. In the rest of the territory the
+effects appear to be more local.
+
+To put these results in context Figure \ref{fig:insee-le-dep} provides a map of
+life expectancies at 60 by sex and by department. Overall, we observe similar
+trends. The similarity suggests that the geographic location is an independent
+predictor of life expectancy and Dis-FLE.
+
+In and of itself it is hard to interpret this result, as may not
+necessarily reflect the impact of local environment on health, but
+instead reflect the level of access to healthcare, as discussed when
+introducing this approach. Further work is necessary to explain these
+differences. A first step would be including more information on the
+departments themselves, e.g., population, population density, GDP,
+median income, etc.
+
+```{r}
+#| fig.cap = "\\label{fig:cox-f3-coefs-dep}
+#|    Estimated hazard ratios for departments of residence.
+#|    Values binned.
+#|    Values above 1 increase hazard relative to residents of department 78.
+#|    Non-significant values (p-value > 0.05) are greyed out.",
+#| fig.width = fig_width,
+#| fig.height = 1.1 * fig_height
+map_coefs <- tar_read(cox_tidy_health_formula1_tt1) %>%
+  select(term, estimate, std.error, p.value) %>%
+  filter(str_detect(term, "^dep")) %>%
+  add_row(term = "dep01", estimate = 1, std.error = 0) %>%
+  mutate(
+    dep = str_extract(term, "dep([AB0-9]{2})", group = 1),
+    estimate = estimate / estimate[dep == "78"],
+    estimate = replace(estimate, p.value > 0.05, NA)
+  )
+
+st_read("data/contour-des-departements.geojson", quiet = TRUE) %>%
+  left_join(map_coefs, by = c("code" = "dep")) %>%
+  ggplot() +
+  aes(fill = estimate) %>%
+  geom_sf() +
+  scale_fill_viridis_b() +
+  labs(fill = "Hazard ratio") +
+  theme_void()
+```
+
+
+```{r}
+#| fig.cap = "\\label{fig:insee-le-dep}
+#|    Life expectany at 60, by sex, in France in 2023. Values binned.
+#|    Source: \\citep{insee_esperances_2023}",
+#|    fig.width = fig_width,
+#|    fig.height = 2.2 * fig_height
+
+#    fig.ncol = 1,
+#    fig.nrow = 2,
+#    fig.align = "center",
+#    fig.show="hold"
+
+
+insee_life_expectancy <- read.xlsx(
+  "data/TCRD_050.xlsx",
+  sheet = "DEP",
+  rows = 6:101,
+  cols = c(1, 9, 10),
+  colNames = FALSE
+) %>%
+  set_names(c("dep", "le_H", "le_F")) %>%
+  as_tibble() %>%
+  pivot_longer(
+    starts_with("le"),
+    names_prefix = "le_",
+    names_to = "sex",
+    values_to = "le"
+  )
+
+
+plot_le <- function(x, label) {
+  x %>%
+    ggplot() +
+    aes(fill = le) %>%
+    geom_sf() +
+    scale_fill_viridis_b() +
+    # facet_grid(cols = vars(sex)) +
+    labs(fill = label) +
+    theme_void() +
+    theme(
+      text = element_text(size = 6),
+      legend.key.size = unit(1, "line")
+    )
+}
+
+le_h_plot <- st_read("data/contour-des-departements.geojson", quiet = TRUE) %>%
+  left_join(insee_life_expectancy, by = c("code" = "dep"), multiple = "all") %>%
+  filter(sex == "H") %>%
+  plot_le("Male LE")
+
+le_f_plot <- st_read("data/contour-des-departements.geojson", quiet = TRUE) %>%
+  left_join(insee_life_expectancy, by = c("code" = "dep"), multiple = "all") %>%
+  filter(sex == "F") %>%
+  plot_le("Female LE")
+
+# layout(matrix(c(1, 1), nrow = 2))
+# # par(mar = c(4, 4, .1, .1))
+# plot(le_f_plot)
+# plot(le_h_plot)
+library(patchwork)
+le_f_plot / le_h_plot
+```
+
+The variables "Education" and "Immigration" indicate the level of
+education and immigration in the commune of residence. Table
+\ref{tab:cox-f3-coefs-immi-dip} gives the obtained hazard ratios for
+these variables. Surprisingly, the level of education and immigration in
+the commune of residence appear to increase the hazard. The effect is
+minor compared to other risk factors, but nonetheless significant. This
+result is also hard to interpret on it own as there is a level of
+indirection between the individual and the commune of residence.
+
+```{r}
+tar_read(cox_tidy_health_formula1_tt1) %>%
+  filter(str_detect(term, "^immi|^dip")) %>%
+  mutate(
+    var = case_when(
+      str_detect(term, "immigration") ~ "Immigration",
+      str_detect(term, "diplome") ~ "Education",
+    ),
+    value = str_extract(term, "([0-3])$", group = 1)
+  ) %>%
+  select(
+    Term = var,
+    Quartile = value,
+    `Hazard ratio` = estimate,
+    `Std. error` = std.error,
+    `p-value` = p.value
+  ) %>%
+  mutate(across(where(is.numeric), number_format(0.001))) %>%
+  group_by(Term) %>%
+  gt(
+    caption = paste(
+      "\\label{tab:cox-f3-coefs-immi-dip}Cox model coefficients for",
+      "the education and immigration levels in the commune of residence."
+    )
+  ) %>%
+  my_as_latex()
+```
+
+# Conclusion \label{sec:discuss}
+
+We propose the use of clinical data to construct health indicators. The
+use of clinical data opens up a hitherto unused source of information
+and makes rich analysis possible, some of which we present in this
+paper.
+
+This work provides a methodological blueprint for calculating health indicators
+based on clinical datasets. The implications of our research extend beyond the
+French context, with potential applications in other countries and healthcare
+systems. Specifically, our methodology is not confined to large clinical
+datasets and can be applied at smaller scales, such as hospital cohorts, in
+France or elsewhere. However, when considering entire populations, accessing
+national hospitalization datasets to calculate nationally representative health
+indicators can be exceedingly challenging. We hope that this work provides a
+precedent that will encourage and facilitate similar efforts in the future.
+
+Although clinical data impose a diagnosis centric vision, rather than
+outcome based one that may be provided by health oriented survey
+instruments, it does provide with a clear outline of the health state
+over the lifetime of the patient. When combined with the large volume
+data available, this results in pertinent indicators on a population
+level. Indeed, as the comparison with HLY shows, Dis-FLE with the adjustment
+for the whole population displays similar trends, although with a wider
+sex gap.
+
+In the absence of standardized practice to define health from clinical
+data it is difficult to construct comparable health indicators. We
+sidestep the issue by focusing on a simple definition of being disease-free.
+A more complex indicator would take into account the entire health trajectory,
+but would be difficult to analyze, something that
+could be treated in further work. Instead, our focus on simple trajectories
+combined with large amount of data available allowed us to exhaustively
+analyze the impact of available covariables. In doing so we illustrate
+the kind of analysis we believe can be made possible by using clinical
+data. We apply the proposed methods to the French PMSI database, and
+analyze the health status of population aged 50 and up from 2010 to
+2013. We summarize the results of the analysis in terms of Dis-FLE based
+on 36 severe conditions and hazard ratios of the corresponding Cox model.
+
+For the population studied the Dis-FLE at 50 years is 10 years for women
+and 7.5 for men. Dis-FLE is strongly influenced by the covariables
+available, indeed Dis-FLE can range from 2.5 to 12.5 for women and from 2.5
+to 10 for men when conditioned on covariates.
+
+The most important determinant of Dis-FLE are the behavioral factors, in
+order of importance : alcohol consumption, tobacco use and obesity. Each
+of these have hazard ratios exceeding 2 for all ages before 80. Alcohol
+consumption has hazard ratio larger than 3 before 60 years.
+Interestingly, all age-dependent effects decrease with age after 60.
+
+Sex also has a large influence with a hazard ratio above 1.2 before 80,
+and as large as 1.4 at about 70. Also, the effect of behavioral risk
+factors was found to differ by sex, with alcohol consumption and obesity
+having a stronger effect on women, and smoking having a stronger effect
+on men. Other factors influence Dis-FLE, but have a weaker effect.
+
+The Cox model analyzed in this paper is the simplest model that still
+allows us to illustrate the richness of underlying data. There are
+however many possible improvements to it. For example, the model
+analyzed does not take into account calendar time. This is in contrast
+to most indicators where the ability to follow them over time is vital.
+A natural extension of the model would be to take in account calendar
+time by including it as an age-dependent covariate. Other possible
+extensions include making effects not only depend on age, but also on
+calendar time, therefore modeling possible improvements of treatment of
+behavioral factors.
+
+The trajectories analyzed are based on a specific definition of health,
+or more specifically disease-free. This definition is based on previous
+work using this dataset, and is conceptually coherent with other
+indicators. However, it lacks direct comparables, making its usefulness
+as an indicator limited for now. Further work may help identify a
+definition of disability closer aligned with other indicators, such as
+GALI.
+
+More fundamentally, the concept of health used introduces an artificial
+dichotomy between good and ill health. Using the same data it should be
+possible to define more realistic individual trajectories, for example by
+assigning each disease a weight. Using this approach we can define individual
+level health-weighted indicator, extending the flexible approach to other
+indicators such as HALE. In this context the use of clinical data would
+also simply methodology as many problems plaguing HALE estimates are resolved
+by these data, as for example comorbidity and the nuance between incidence
+and prevalence.
+
+Such an approach would make both the definition of health trajectories
+and their analysis significantly more complex. We, believe however that
+that would be a natural next step in using clinical data as data-source
+for health indicators.
+
+Beyond considerations of health concept used, the use of clinical data requires
+additional assumptions and adjustment procedures to produce
+nationally-representative indicators. A simple adjustment procedure was
+introduced and used to calculate Dis-FLE for the general French population.
+However, we believe that this procedure could be improved by using more
+granular data and, under additional assumptions, extended to the estimates
+provided by the Cox model.
+
+Should our methodology and findings prove useful and robust, future work
+could delve into the development of a definition of health, that is
+based on clinical data that explicitly targets GALI or other relevant
+health indicators, potentially drawing upon detailed assessments of
+activities of daily living (ADLs). Such an endeavor could enhance the
+accuracy and sensitivity of our understanding of disability and its
+implications for individual and population health.
+
+The Cox model was the tool of choice for this analysis. However, the
+large volume of data combined with the need to explicitly define the
+model matrix required a large amount of computer memory to do the necessary
+computations. The use of other machine learning algorithms may provide a
+more efficient means to analyze this dataset.
+
+\vspace{6pt}
+
+```{=tex}
+\authorcontributions{Conceptualization, Oleksandr Sorochynskyi, Quentin Guibert
+and Frédéric Planchet; Data curation, Michaël Schwarzinger, Quentin Guibert;
+Methodology, Oleksandr Sorochynskyi, Quentin Guibert and Frédéric Planchet;
+Software, Oleksandr Sorochynskyi; Writing - original draft, Oleksandr
+Sorochynskyi; Writing - review \& editing, Quentin Guibert, Frédéric Planchet
+and Michaël Schwarzinger}
+```
+\funding{This research received no funding}
+
+\institutionalreview{Not applicable.}
+
+```{=tex}
+\informedconsent{The requirement for informed consent is waived as data
+is de-identified.}
+```
+```{=tex}
+\dataavailability{The data is not publicly accessible. The data used in this
+study can only be obtained from the Agence Technique de l'Information sur
+l'Hospitalisation (ATIH). The study was approved by the French National
+Commission for Data Protection (CNIL DE-2015-025), who granted access to the
+French National Hospital Discharge database for the years 2008 to 2013.}
+```
+\conflictsofinterest{The authors declare no conflict of interest.}
+
+```{=tex}
+\appendixtitles{yes}
+\appendixsections{single}
+\appendix
+```
+
+# Exclusion criteria
+
+Table \ref{tab:filters-schwarz} gives the exclusion criteria applied to
+the dataset.
+
+```{r, message=FALSE}
+pmsi_volumes <- suppressMessages(read_csv(
+  "reports/disease_filters.csv",
+  col_types = cols(
+    level = col_integer(),
+    criteria_en = col_character(),
+    criteria_fr = col_character(),
+    years = col_character(),
+    pop_size = col_character(),
+    percent = col_character(),
+    pop_remain = col_character(),
+    percent_of_total = col_character()
+  )
+)) %>%
+  rename_with(
+    \(x) {
+      case_when(
+        TRUE ~ x
+      )
+    }
+  ) %>%
+  mutate(
+    across(
+      c(pop_size, pop_remain),
+      ~ as.integer(str_remove_all(., " "))
+    ),
+    across(
+      c(percent, percent_of_total),
+      ~ as.double(str_replace(str_remove_all(., "%"), ",", ".")) / 100
+    )
+  )
+
+pmsi_volumes %>%
+  mutate(percent = pop_size / max(pop_size, na.rm = TRUE)) %>%
+  mutate(
+    across(pop_size, number_format()),
+    across(percent, percent_format(0.1)),
+  ) %>%
+  select(
+    `Criteria` = criteria_en,
+    Years = years,
+    `Pop. size` = pop_size,
+    `% of total pop.` = percent
+  ) %>%
+  mutate(across(everything(), ~ replace_na(., ""))) %>%
+  kable(
+    "latex",
+    label = "filters-schwarz",
+    caption = paste(
+      "Exclusion criteria and impact on number of patients.",
+      "Translated and adapted from Table 1 in \\citep{schwarzinger_etude_2018}."
+    ),
+    longtable = TRUE
+  ) %>%
+  column_spec(1, width = "20em") %>%
+  row_spec(which(pmsi_volumes$level < 2), bold = TRUE) %>%
+  row_spec(which(pmsi_volumes$level < 1), bold = TRUE, background = "gray")
+```
+
+<!-- 
+# Whole population adjustment example \label{sec:whole_pop_exa}
+
+The implementation of the whole population adjustment involves a nuanced
+process, introducing artificial individuals to the dataset while
+adhering to the established exposure rules. Notably, all individuals are
+considered exposed from their 50th birthday or January the 1st, 2010,
+whichever comes later, until the occurrence of the first adverse event
+or December the 31st, 2013, whichever comes first. This approach ensures
+consistency in Dis-FLE calculations across datasets. To illustrate, adding
+100,000 individuals aged 70 in 2013 necessitates the addition of a
+corresponding number in 2010, as it is logically impossible for an
+individual to be 70 years old in 2013 without exposure in 2010.
+Consequently, the required individuals are incorporated for each cohort
+in 2010 and subsequently censored at the end of each year to align with
+INSEE exposure. The majority of these added individuals are censored at
+the conclusion of 2013, and not earlier.
+
+Table \ref{tab:whole-pop-adj-calc} gives the details of the calculation
+for the male 1954 cohort. On January 1st, 2010, there were 393 thousand
+men alive from the 1954 cohort. Of these, approximately 279 thousand
+were observed in PMSI. Therefore, the adjustment introduces an
+additional 114 thousand healthy men in 2010 for this cohort. These 114
+thousand men are then censored at the end of every year to maintain the
+adjustment. In 2010, 2 thousand men are censored. In 2011, 1 thousand,
+in 2012 1 thousand and in 2013 the rest of the introduced population,
+i.e., 110 thousand is censored, as this is the end of observation
+period. These censoring occur because population not observed for each
+cohort decreases with time.
+
+```{r}
+tar_read(comparaison_pop_pmsi_gen) %>%
+  filter(cohort == 1954, sex == "M") %>%
+  select(year, pop_insee, pop_pmsi) %>%
+  mutate(
+    across(c(pop_insee, pop_pmsi), \(x) round(x / 1e3)),
+    missing = pop_insee - pop_pmsi,
+    datapoints_added = cummin(missing),
+    exits = c(rev(diff(rev(datapoints_added))), NA),
+    exits = replace_na(exits, datapoints_added[1] - sum(exits, na.rm = TRUE)),
+    datapoints_added = replace(datapoints_added, year > 2010, 0),
+  ) %>%
+  rename(
+    Year = year,
+    `Pop. INSEE (i)` = pop_insee,
+    `Pop. PMSI (ii)` = pop_pmsi,
+    `Pop. not observed (i) - (ii)` = missing,
+    `Datapoints added as part of adjustment` = datapoints_added,
+    `New datapoints censored` = exits
+  ) %>%
+  kable(
+    "latex",
+    label = "whole-pop-adj-calc",
+    caption = paste(
+      "An example of the calculation used to",
+      "adjust the exposure to match the whole population, applied to the",
+      "male cohort of 1954. All population counts are in thousands."
+    )
+  ) %>%
+  column_spec(2:3, width = "4em") %>%
+  column_spec(4:6, width = "6em")
+```
+-->
+
+\newpage
+
+# Sex-specific survival curves without adjustment
+
+Figure \ref{fig:health-surv-curve-nocov} shows the sex specific survival
+curves without adjustment for the whole population. Unsurprisingly women
+spend longer in healthy state than men. The oscillations in the curves
+are due to rounding in anonymized dates. Figure
+\ref{fig:health-expect-curve-nocov} shows the corresponding
+$\text{Dis-FLE}(t)$.
+
+```{r, fig.cap = "\\label{fig:health-surv-curve-nocov}Survival curves of being in good health, by sex."}
+tidy_surv(tar_read(surv_health)) %>%
+  ggplot() +
+  aes(
+    x = time,
+    y = surv,
+    ymax = 1.01 * upper,
+    ymin = 0.99 * lower,
+    group = str_sub(strata, 5, 5),
+    color = str_sub(strata, 5, 5),
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_step() +
+  scale_y_continuous(labels = percent_format()) +
+  coord_cartesian(xlim = c(50, 100)) +
+  labs(x = "Age", y = "Probability of being in
+  good health", color = "Sex")
+```
+
+```{r, fig.cap = "\\label{fig:health-expect-curve-nocov}Conditional Dis-FLE as a function of age and sex."}
+tidy_surv(tar_read(surv_health)) %>%
+  group_by(sex = str_sub(strata, 5, 5)) %>%
+  reframe(
+    ages = seq(50, 100, length.out = 50),
+    expect = surv_time(time, surv, x = ages, maxtime = 100) - ages,
+    expect_up = surv_time(time, upper, x = ages, maxtime = 100) - ages,
+    expect_dn = surv_time(time, lower, x = ages, maxtime = 100) - ages,
+  ) %>%
+  filter(ages < 100) %>%
+  ggplot() +
+  aes(
+    x = ages,
+    y = expect,
+    ymax = expect_up,
+    ymin = expect_dn,
+    group = sex,
+    color = sex
+  ) +
+  geom_ribbon(alpha = 0.4, color = NA) +
+  geom_line() +
+  expand_limits(y = 0) +
+  labs(y = "Dis-FLE", x = "Age", color = "Sex")
+```
+
+\newpage 
+
+# Model diagnostics
+
+The cox model used is fit on 60% of the available data. The remaining
+40% are reserved to perform model diagnostics presented in this section.
+
+The C-statistic calculated on the test set is
+`r percent(tar_read(cox_health_f1_tt1_concordance_test)$concordance, 0.01)`.
+
+To evaluate the quality of the fit on the test dataset, we calculate the linear
+predictor, i.e., $\log(\text{Hazard ratio})$, for every individual. Individuals
+are then classified into classes based on the calculated value. The
+distribution of linear predictors is clustered around few values. This is due
+to the fact that the influence of sex and the presence of risk factors
+essentially determines risk, with all other variables essentially only adding
+noise. The lowest interval : $(-\infty, 0.2]$ covers essentially only women
+without any risk factors; $(0.2, 0.7]$ covers men without any risk factors;
+$(0.7; 1.1]$ covers mostly persons with obesity, $(1.1, 1,5]$ covers mostly
+smokers, and $(1,5, \infty]$ covers persons with alcohol consumption, or
+multiple risk factors. Finally, Figure \ref{fig:compare_surv_test_risk_group}
+compares the observed survival curves for each of these classes with the
+predicted survival curve.
+
+One problem with this approach is that the model includes age-dependent
+coefficients. This means that risk score for each individual changes
+over time, making it impossible to attribute a constant score to each
+individual. However, since the observation period is four years and the
+time grid for age-dependent coefficient is two years, each individual
+may at most have 3 unique risk values, and most have only 1. When
+multiple risk values are present, they are close to each other. For the
+calculation above, we use the average of predicted linear prediction
+scores.
+
+```{r}
+#| fig.cap = "\\label{fig:compare_surv_test_risk_group}
+#|    Comparaison between observed and estimated survival functions for the
+#|    test dataset, grouped by linear predictor.",
+#| fig.width = fig_width * 0.9
+tar_read(tidy_cox_health_f1_tt1_risk_group_surv_test) %>%
+  group_by(origin, risk_group) %>%
+  mutate(
+    expect = surv_time(
+      time,
+      surv,
+      x = time,
+      maxtime = 100
+    ) - time,
+    origin = if_else(origin == "observed", "Observation", "Prediction")
+  ) %>%
+  ggplot() +
+  aes(
+    x = time,
+    y = surv,
+    group = interaction(risk_group, origin),
+    color = risk_group,
+    linetype = origin
+  ) +
+  geom_line() +
+  coord_cartesian(
+    # ylim = c(0, 25),
+    # xlim = c(50, 115)
+    xlim = c(50, 90)
+  ) +
+  scale_color_viridis_d() +
+  theme(legend.box = "horizontal") +
+  labs(
+    x = "Age",
+    y = "Probability of being in
+    good health",
+    color = "Risk group",
+    linetype = NULL
+  )
+```
+
+\newpage
+
+# All Cox model coefficients
+
+```{r}
+tar_read(cox_tidy_health_formula1_tt1) %>%
+  filter(!is.na(estimate)) %>%
+  mutate(
+    term = str_replace(
+      term,
+      fixed("I(fdr_obesity_cat3 != \"0\" & fdr_aud_cat3 != \"0\" & fdr_smoker_cat3 != \"0\")TRUE"),
+      "all_3_fdr"
+    ),
+    # tgroup = as.integer(
+    #   str_extract(term, "nsk\\(tgroup, df = 8, b = 0\\)([0-9]+)", group = 1)
+    # ),
+    # age = if_else(is.na(tgroup), "", str_glue("({50 + 2 * tgroup}, {50 + 2 * (tgroup + 1)}]")),
+    term = term %>%
+      str_replace(":", " * ") %>%
+      str_replace("fdr_obesity_cat3", "Obesity, cat. ") %>%
+      str_replace("fdr_smoker_cat3", "Smoking, cat. ") %>%
+      str_replace("fdr_aud_cat3", "Alcohol, cat. ") %>%
+      str_replace("sex", "Sex : ") %>%
+      str_replace("immigration", "Immigration : Q") %>%
+      str_replace("diplome", "Education : Q") %>%
+      str_replace("nsk\\(tgroup, df = 8, b = 0\\)", "Spline(age): knot ") %>%
+      str_replace("dep", "Department of residence : "),
+    estimate = number(estimate, 0.01),
+    std.error = number(std.error, 0.01),
+    p.value = number(p.value, 0.01),
+  ) %>%
+  select(
+    Term = term,
+    `Hazard ratio` = estimate,
+    `Std. err.` = std.error,
+    `p-value` = p.value
+  ) %>%
+  gt(
+    caption = paste(
+      "\\label{tab:all_cox_coefs}All Cox model coefficient with",
+      "associated standard errors and p-values."
+    )
+  ) %>%
+  my_as_latex()
+```
+
+\newpage

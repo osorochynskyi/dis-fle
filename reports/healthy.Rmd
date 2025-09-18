@@ -1,0 +1,1036 @@
+---
+title: "Studying determinants of healthy life expectancy"
+author: "Oleksandr Sorochynskyi"
+date: "`r today()`"
+bibliography: biblio.bib
+output:
+    pdf_document: 
+        number_sections: true
+        keep_tex: no
+        latex_engine: lualatex
+        toc: true
+        includes:
+            in_header: "papreambule.tex"
+---
+
+```{r setup, include = FALSE}
+# Pretty much all settings are loaded except for knit options
+source("R/options_visual.R")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# A priori
+
+## Insee
+
+I first start with INSEE, with the search term "dependance "
+
+The first article is on percieved health in 2022:
+https://www.insee.fr/fr/outil-interactif/5367857/tableau/40_SOC/45_SHD
+
+Another result is the chornoligal view of percieved health state, from INSEE
+but based on Eurostat numbers :
+https://www.insee.fr/fr/statistiques/2386523
+
+Secondly I used the term "bonne santé" and Bingo.
+
+First article is "Esperance de vie en bonne santé".
+As it states it compares life expectancy in good health between EU and
+France.
+https://www.insee.fr/fr/statistiques/3281641?sommaire=3281778&q=bonne+sant%C3%A9
+
+Second link compares estimation of healthy life expectancy in France, by sex,
+with the proportion of persons considering themselves healthy, and with
+proprotion of people having to "Recours aux professionnels de santé au moins une
+fois au cours des 12 derniers mois".
+
+
+## Eurostat
+
+Eurostat appers to have done some work on the subject, 
+
+Quickly I find that the Eurostat usees the term : Healthy life years (HLY)
+
+Eurostat uses the Sullivan method : https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Sullivan_method
+Essentially, applying "health rates" collected from surveys to life tables.
+
+Overall HLY statistics are presented in :
+https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Healthy_life_years_statistics#Healthy_life_years_at_age_65
+
+This notably includes HLY at 65 years. Moreover it is stated that Eurostat also 
+reports the HLY at 50 as well. THis can be a very intresting comparaison, with
+a baseline check at 50 plus, a comparaison at 65.
+
+Also of note is the fact that HLY is included into EU-SILC which is a general
+framework for evaluating living conditions in the EU.
+
+There is also an indicator "Healthy life expectancy based on self-perceived health",
+the difference between HLY and this is the way "good health" is determined.
+In the former a question of the form is asked : How good is your health, with
+possible anwers being [very good], [good], [fair], [bad], [very bad], with
+all but the last two being considered as "good health". Meanwhile, for HLY
+the question is :
+
+> "for at least the past six months, to what extent have you been limited
+> because of a health problem in activities people usually do? Would you say you
+> have been" :
+>
+>  * severely limited?
+>  * limited but not severely?
+>  * not limited at all?
+
+## Eurohex
+
+Insee cites Eurohex as one of its sources, may be of intrest.
+
+There also appears to have existed a certain Ehemu project. Which calculated
+an indicator similar to HLY. Overall, it appears that all of these were
+suprceded cira 2008-2009 by Eurostat.
+
+I will therefore focus on Eurostat statistics, for consistency over time, 
+ease of acess, and a wide coverage.
+
+
+## Other
+
+These guys integrate some information if the person is actually working :
+https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(20)30114-6/fulltext
+
+
+
+
+# Eurostat data
+
+
+```{R}
+read_eurostat_hly_data <- function(file, sheet) {
+    read_excel(file, sheet, range = "A10:AI44", na = ":") %>%
+        select(TIME, matches("20[0-9]{2}")) %>%
+        filter(TIME != "GEO (Labels)") %>%
+        pivot_longer(
+            -TIME,
+            values_to = "values",
+            names_to = "year"
+        ) %>%
+        mutate(across(values, as.numeric), across(year, ~ ym(paste(., 1, sep = "-"))))
+}
+
+# Healthy life years in absolute value at 50
+hly <- read_eurostat_hly_data(
+    "data/hlth_hlye_spreadsheet.xlsx",
+    "Sheet 4"
+) %>%
+    rename(hly = values)
+
+# Life expectancy in absolute value at 50
+ly <- read_eurostat_hly_data(
+    "data/hlth_hlye_spreadsheet.xlsx",
+    "Sheet 6"
+) %>%
+    rename(ly = values)
+
+left_join(hly, ly, by = c("TIME", "year")) %>%
+    pivot_longer(c(hly, ly), names_to = "indicator") %>%
+    filter(TIME == "France") %>%
+    ggplot() +
+    aes(
+        x = year,
+        y = value,
+        group = indicator,
+        color = indicator
+    ) +
+    geom_point() +
+    geom_line()
+```
+
+Now what do we have ? I'm going to do a single estimation for the whole
+period, and I would expect (like, more like) it to fall somewhere in the
+2008-2013 range from Eurostat. During this period HLY mostly increases
+from 18.8 to 19.9 years at 50. However, if we take into account the fact that
+the population is less healthy than the general population, I would not
+be surprised if this would be lower.
+
+As a start I take the non-imputed database. It will understimate deaths, and
+therefore overestimate the life duration. I don't think it should have any
+impact on the HLY.
+
+```{r compar_hly}
+tar_load(c(life, health, pathology))
+id_sample <- sample(life$id, 10e3)
+prop_sample <- length(id_sample) / n_distinct(life$id)
+life <- filter(life, id %in% id_sample)
+health <- filter(health, id %in% id_sample)
+
+km_health <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = health,
+    id = id
+)
+km_life <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = life,
+    id = id
+)
+```
+
+Now to calculate the actual expected residual life years at 50 years of age.
+
+```{r}
+residual_life_at50 <- with(km_life, surv_time(time, surv, 50))
+resudual_health_at50 <- with(km_health, surv_time(time, surv, 50))
+
+pmsi_hly <- tibble(
+    value = c(residual_life_at50, resudual_health_at50),
+    indicator = paste("PMSI", c("ly", "hly"))
+)
+
+hly_compar_plot <- left_join(hly, ly, by = c("TIME", "year")) %>%
+    pivot_longer(c(hly, ly), names_to = "indicator") %>%
+    filter(TIME == "France") %>%
+    ggplot() +
+    aes(
+        x = year,
+        y = value,
+        group = indicator,
+        color = indicator
+    ) +
+    geom_point() +
+    geom_line() +
+    expand_limits(y = 0) +
+    geom_hline(aes(yintercept = value, color = indicator), data = pmsi_hly) +
+    coord_cartesian(xlim = c(ymd("2010-01-01"), "2014-01-01"))
+hly_compar_plot
+```
+
+# Comparaison lois
+
+```{r}
+tidy_surv_res <- bind_rows(
+    life = tidy_surv(km_life) %>%
+        transmute(x = time, y = surv),
+    pathol = tidy_surv(km_health) %>%
+        transmute(x = time, y = surv),
+    .id = "method"
+)
+
+tidy_surv_res %>%
+    ggplot() +
+    aes(
+        x = x,
+        y = y,
+        group = method,
+        color = method,
+    ) +
+    geom_line() +
+    scale_y_continuous(labels = percent_format()) +
+    labs(y = "Probabilité d'être en état", x = "Age")
+```
+
+On note que l'alure de la distirbution des durées de vie en bonne santé est
+sensiblement different.
+
+```{r}
+cox_health <- coxph(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ fdr_obesity_cat3 + fdr_aud_cat3 + fdr_smoker_cat3 + dep + immigration + diplome + sex + year(date_naissance),
+    data = e_health,
+    id = id
+)
+
+km_life_fdr <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ fdr_obesity_cat3 + fdr_aud_cat3 + fdr_smoker_cat3,
+    data = e_health,
+    id = id
+)
+
+cox_health
+plot(km_life_fdr)
+cox.zph(cox_health)
+
+plot(cox.zph(cox_health))
+
+summary(cox_health)
+
+tidy_surv(cox_health)
+tibble(
+    time = rep(cox_health$time, 4),
+    pstate = as.vector(cox_health$pstate[, , 2]),
+    id = as.vector(col(cox_health$pstate[, , 2]))
+) %>%
+    left_join(
+        mutate(cox_surv$newdata, id = seq_len(n())),
+        by = "id"
+    ) %>%
+    mutate(strata = strata(sex, fdr_obesity_all, shortlabel = FALSE)) %>%
+    ggplot() +
+    aes(
+        x = time,
+        y = pstate,
+        group = fdr_obesity_all,
+        color = fdr_obesity_all
+    ) +
+    geom_line() +
+    facet_grid(col = vars(sex)) +
+    expand_limits(y = 0.6) +
+    scale_y_continuous(labels = percent_format()) +
+    labs(y = "Probabilité d'être en état", x = "Age")
+```
+
+
+## Ajustement population entière
+
+My other adjustmets seems to work pretty well (close to Eurostat), but
+what did I do wrong with this one ?
+
+```{r}
+pyramide <- read_csv2("data/donnees_pyramide_act.csv") %>%
+    group_by(ANNEE, AGE) %>%
+    summarize(POP = sum(POP), .groups = "drop") %>%
+    filter(AGE >= 50, ANNEE %in% c(2010:2013)) %>%
+    # Reduce the population to the same sample size
+    mutate(POP = rbinom(n(), POP, prop_sample))
+
+# 0.75 to compensate for those excluded, 0.755 to compensate for the entire pop
+nb_bonne_sante <- floor(nrow(health) / 0.75 * (1 / 0.755 - 1))
+
+df_bonne_sante <- tibble(
+    id = max(health$id) + seq_len(nb_bonne_sante) + 1,
+    debut_obs_age = sample(
+        pyramide$AGE[pyramide$ANNEE == 2010],
+        size = nb_bonne_sante,
+        replace = TRUE,
+        prob = pyramide$POP[pyramide$ANNEE == 2010]
+    ) + runif(nb_bonne_sante),
+    fin_obs_age = debut_obs_age + 3,
+    patho_obs = FALSE
+)
+
+gen_pop_data <- bind_rows(
+    select(health, id, debut_obs_age, fin_obs_age, patho_obs),
+    df_bonne_sante
+)
+
+km_health_pathol1_pop_gen <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = gen_pop_data,
+    id = id
+)
+
+tidy_surv_res %>%
+    bind_rows(
+        health_gen = tidy_surv(km_health_pathol1_pop_gen) %>%
+            transmute(method = "health_gen", x = time, y = surv),
+    ) %>%
+    ggplot() +
+    aes(
+        x = x,
+        y = y,
+        group = method,
+        color = method,
+    ) +
+    geom_line() +
+    scale_y_continuous(labels = percent_format()) +
+    labs(y = "Probabilité d'être en état", x = "Age")
+```
+
+
+
+# Meilleur ajustement
+
+J'ajuste la population exposée par année et age.
+
+Pour améliorer l'ajustement je comptabilise également des morts.
+Sources:
+
+* data/irsocsd20133_T74.xls : https://www.insee.fr/fr/statistiques/2106617?sommaire=2106675
+* data/donnees_pyramide_act : https://www.insee.fr/fr/statistiques/6327226?sommaire=6327254 (Pyramides des âges/La pyramide des âges)
+
+```{r}
+deaths <- read_excel(
+    "data/irsocsd20133_T74.xls",
+    sheet = "FM - E",
+    range = "A7:CY58",
+    col_names = c("annee", "Ensemble", as.character(0:100))
+) %>%
+    select(-Ensemble) %>%
+    pivot_longer(
+        cols = matches("[0-9]+"),
+        names_to = "age",
+        values_to = "deces",
+        names_transform = as.integer
+    ) %>%
+    filter(age >= 50, annee %in% 2010:2013) %>%
+    mutate(
+        # Reduce the population to the same sample size
+        deces = rbinom(n(), deces, prop_sample),
+        annee = as.integer(annee)
+    )
+```
+
+# Manque de pop
+
+D'abord je réalise un compartif plus détaillé, en comparat la population ovesrvé
+dans le portefeuil au 1er janvier de N, et cela par age à la même date.
+
+```{r}
+tar_load(c(evenement, individu))
+evenement <- filter(evenement, id %in% id_sample)
+individu <- filter(individu, id %in% id_sample)
+dates_sorties <- evenement %>%
+    # filter(event %in% pathology$event[pathology$fin]) %>%
+    # If I assume that all ilnesses are observed then PDV are healthy thereafter
+    filter(event %in% "STATE2_DECES") %>%
+    group_by(id) %>%
+    summarize(date_sortie = max(date_event), .groups = "drop")
+
+individu_tout <- individu %>%
+    left_join(dates_sorties, by = "id") %>%
+    select(id, date_naissance, date_sortie) %>%
+    mutate(
+        date_sortie = replace(date_sortie, date_sortie == ymd("2013-12-31"), ymd("2013-12-30")),
+        date_sortie = replace(date_sortie, is.na(date_sortie), ymd("2013-12-31"))
+    )
+
+individu_tout %>%
+    reframe(presence_counts_1jan(id, date_naissance, date_sortie))
+
+pop_by_yr_age <- individu_tout %>%
+    reframe(presence_counts_1jan(id, date_naissance, date_sortie))
+
+expo_ajout <- inner_join(
+    pop_by_yr_age,
+    pyramide %>% rename(tot_pop = POP),
+    by = c(year = "ANNEE", age = "AGE")
+) %>%
+    mutate(
+        missing_pop = tot_pop - obs_pop,
+    )
+
+expo_ajout %>%
+    mutate(prop_missing = missing_pop / tot_pop) %>%
+    ggplot() +
+    aes(
+        x = age,
+        y = prop_missing,
+        group = year,
+        color = as.character(year)
+    ) +
+    geom_line() +
+    expand_limits(y = c(0, 1))
+
+# Volumes par cohort
+expo_ajout %>%
+    mutate(cohort = year - age) %>%
+    ggplot() +
+    aes(
+        x = year,
+        y = missing_pop,
+        group = cohort,
+        color = as.character(cohort)
+    ) +
+    geom_line() +
+    expand_limits(y = c(0, 1))
+# Calculate year exit by cohort
+expo_ajout %>%
+    mutate(cohort = year - age) %>%
+    arrange(cohort, age) %>%
+    print(n = 100)
+
+benchmark_pop_gen <- expo_ajout %>%
+    mutate(cohort = year - age) %>%
+    arrange(cohort, age) %>%
+    group_by(cohort) %>%
+    mutate(
+        # Missing pop décroissante : on ne peux pas ajouter des personnes
+        # qui appareissent au premier RDV
+        missing_pop_decr = pmin(missing_pop, cummin(missing_pop), na.rm = TRUE),
+        exits = c(rev(diff(rev(missing_pop_decr))), NA),
+        exits = replace_na(exits, missing_pop[which.min(age)] - sum(exits, na.rm = TRUE)),
+    ) %>%
+    # summarize(
+    #     tot = missing_pop[which.min(age)],
+    #     tot_exits = sum(exits)
+    # ) %>%
+    #     filter(tot != tot_exits)
+    reframe(
+        id = max(individu_tout$id) + seq_len(sum(exits)) + 1,
+        date_naissance = ymd(paste(rep(cohort, exits) - 1, "-01-01")) +
+            days(round(365.25 * runif(sum(exits)))),
+        date_naissance = date_naissance %>%
+            pmin(ymd(paste(rep(cohort, exits) - 1, "-12-31"))) %>%
+            # 01-02, because otherwise those born on the 1st wil be too young
+            pmax(ymd(paste(rep(cohort, exits) - 1, "-01-02"))),
+        date_event = ymd(paste(rep(year, exits), "-12-31")),
+        event = "STATE2_PDV"
+    )
+
+
+individu_tout <- bind_rows(
+    individu,
+    select(benchmark_pop_gen, id, date_naissance)
+)
+evenement_tout <- bind_rows(
+    evenement,
+    select(benchmark_pop_gen, id, date_event, event)
+)
+life_adj <- evenement_tout %>%
+    filter(event %in% c("STATE2_PDV", "STATE2_DECES")) %>%
+    ages_patho(
+        individu_tout,
+        .,
+        "STATE2_DECES",
+        pathology,
+        50,
+        ymd("2010-01-01"),
+        ymd("2013-12-31")
+    )
+
+health_adj <- evenement_tout %>%
+    filter(!event %in% "STATE1_NO_PATHOL1") %>%
+    mutate(
+        event = fct_other(
+            event,
+            drop = c(
+                pathology$event[pathology$pathol == "1"],
+                "STATE2_DECES"
+            ),
+            other_level = "pathol12"
+        ),
+        event = fct_drop(event)
+    ) %>%
+    arrange(date_event, id) %>%
+    filter(!duplicated(id)) %>%
+    arrange(id) %>%
+    ages_patho(
+        individu_tout,
+        .,
+        "pathol12",
+        pathology,
+        50,
+        ymd("2010-01-01"),
+        ymd("2013-12-31")
+    )
+
+
+km_health_adj <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = health_adj,
+    id = id
+)
+km_life_adj <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = life_adj,
+    id = id
+)
+
+with(km_life, surv_time(time, surv, 50))
+with(km_life_adj, surv_time(time, surv, 50))
+
+with(km_health, surv_time(time, surv, 50))
+with(km_health_adj, surv_time(time, surv, 50))
+with(km_health_pathol1_pop_gen, surv_time(time, surv, 50))
+
+tidy_surv_res %>%
+    bind_rows(
+        tidy_surv(km_life_adj) %>% transmute(method = "adj_life_adj", x = time, y = surv)
+    ) %>%
+    bind_rows(
+        tidy_surv(km_health_adj) %>% transmute(method = "adj_health_adj", x = time, y = surv)
+    ) %>%
+    bind_rows(
+        tidy_surv(km_health_pathol1_pop_gen) %>%
+            transmute(method = "naive_adj", x = time, y = surv),
+    ) %>%
+    mutate(familiy = if_else(str_detect(method, "life"), "life", "health")) %>%
+    ggplot() +
+    aes(
+        x = x,
+        y = y,
+        group = method,
+        color = method,
+    ) +
+    geom_line() +
+    scale_y_continuous(labels = percent_format()) +
+    facet_wrap(vars(familiy)) +
+    labs(y = "Probabilité d'être en état", x = "Age")
+```
+
+
+I'm going to assume that :
+
+ (1) all the population without pathol1 or death is healthy
+ (2) all the deaths unobserved happened without a prior pathol1
+
+Moreover, to add events to the studied population population I need to assume
+that :
+
+ 1. The exact age at 1st of Janruary is uniformly distributed
+ 1. the deaths within the year are uniformly distributed both 
+
+
+Note that for a given year $N$, and age $x$, those that were $x$ years-old at
+first of Janruary and those that will die within the year $N$, some will die at
+age $x$ some at age $x+1$. Since I assume uniform birthdays and deaths, this
+means about half will die at age $x$ and the other half at age $x+1$.
+
+What I want to generate is an indivdual with a signle event
+```{R}
+# Je suppose que dans tout ce expo_ajout il n'y a aucun décès
+individu_tout_adj <- expo_ajout %>%
+    group_by(year, age) %>%
+    reframe(
+        age_1jan = age + runif(missing_pop),
+    ) %>%
+    mutate(
+        id = max(individu_tout$id) + seq_len(n()) + 1,
+        debut_obs_date = ymd(paste(year, "-01-01")),
+        fin_obs_date = ymd(paste(year, "-07-31")),
+        date_naissance = debut_obs_date - days(round(365.25 * age_1jan)),
+        debut_obs_age = interval(date_naissance, debut_obs_date) / years(1),
+        fin_obs_age = interval(date_naissance, fin_obs_date) / years(1),
+        date_sortie = fin_obs_date
+    )
+```
+
+Mecanical check 
+```{r}
+# Volumes
+expo_ajout$missing_pop %>% sum()
+nrow(individu_tout_adj)
+
+# individu_tout_adj each only present one 1st jan
+individu_tout_adj %>%
+    filter(cohort == 1930) %>%
+    transmute(
+        id = id,
+        test_age_test = age,
+        test_year_test = year,
+        date_naissance = date_naissance,
+        aniv50 = date_naissance + days(round(365.25 * 50)),
+        date_sortie = date_sortie,
+        map_dfc(
+            set_names(2010:2013),
+            ~ ymd(paste0(., "-01-01")) %within% interval(aniv50, date_sortie)
+        ) %>%
+            rename_with(~ paste0("presence_", .)),
+        map_dfc(
+            set_names(2010:2013),
+            ~ floor(interval(date_naissance, ymd(paste0(., "-01-01"))) / years(1))
+        ) %>%
+            rename_with(~ paste0("age_", .)),
+    ) %>%
+    pivot_longer(
+        cols = starts_with(c("presence_", "age_")),
+        names_to = c(".value", "year"),
+        names_pattern = "(presence|age)_([0-9]{4})"
+    ) %>%
+    filter(test_age_test != age, test_year_test == year)
+group_by(year, age) %>%
+    summarize(obs_pop = sum(presence), .groups = "drop")
+```
+
+Ok, I calculate the expsoure from 50 years for indivduals,
+even those that wre added and thus supposed to only be exposed for a year.
+
+Check work 
+```{R}
+pop_by_yr_age_adj <- individu_tout_adj %>%
+    select(id, date_naissance, date_sortie) %>%
+    bind_rows(individu_tout) %>%
+    transmute(
+        id = id,
+        date_naissance = date_naissance,
+        aniv50 = date_naissance + days(round(365.25 * 50)),
+        date_sortie = date_sortie,
+        map_dfc(
+            set_names(2010:2013),
+            ~ ymd(paste0(., "-01-01")) %within% interval(aniv50, date_sortie)
+        ) %>%
+            rename_with(~ paste0("presence_", .)),
+        map_dfc(
+            set_names(2010:2013),
+            ~ floor(interval(date_naissance, ymd(paste0(., "-01-01"))) / years(1))
+        ) %>%
+            rename_with(~ paste0("age_", .)),
+    ) %>%
+    pivot_longer(
+        cols = starts_with(c("presence_", "age_")),
+        names_to = c(".value", "year"),
+        names_pattern = "(presence|age)_([0-9]{4})"
+    ) %>%
+    group_by(year = as.numeric(year), age) %>%
+    summarize(obs_pop = sum(presence), .groups = "drop")
+
+expo_ajout_adj <- inner_join(
+    pop_by_yr_age_adj,
+    pyramide %>% rename(tot_pop = POP),
+    by = c(year = "ANNEE", age = "AGE")
+) %>%
+    mutate(
+        missing_pop = tot_pop - obs_pop,
+    )
+
+expo_ajout_adj %>%
+    mutate(
+        prop_missing = missing_pop / tot_pop,
+        cohort = year - age,
+    ) %>%
+    arrange(cohort, age) %>%
+    print(n = 100)
+
+expo_ajout_adj %>%
+    mutate(
+        prop_missing = missing_pop / tot_pop,
+        cohort = year - age,
+    ) %>%
+    ggplot() +
+    aes(
+        x = age,
+        y = prop_missing,
+        group = cohort,
+        color = as.character(cohort)
+    ) +
+    geom_line() +
+    expand_limits(y = c(0, 1))
+
+expo_ajout_adj %>%
+    print(n = 100)
+```
+
+
+Full model :
+```{r}
+life_adj <- individu_tout_adj %>%
+    select(id, date_naissance, date_sortie, cohort, event) %>%
+    bind_rows(individu_tout) %>%
+    mutate(
+        id = id,
+        aniv50 = date_naissance + days(round(365.25 * 50)),
+        debut_obs_date = pmax(aniv50, ymd("2010-01-01")),
+        debut_obs_age = interval(date_naissance, debut_obs_date) / years(1),
+        fin_obs_age = interval(date_naissance, date_sortie) / years(1),
+        patho_obs = is.na(event) & date_sortie == ymd("2013-12-31")
+    )
+
+km_health_pathol1_pop_gen2 <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = life_adj,
+    id = id
+)
+
+tidy_surv_res %>%
+    bind_rows(
+        tidy_surv(km_health_pathol1_pop_gen2) %>%
+            transmute(method = "health_gen", x = time, y = surv),
+    ) %>%
+    ggplot() +
+    aes(
+        x = x,
+        y = y,
+        group = method,
+        color = method,
+    ) +
+    geom_line() +
+    scale_y_continuous(labels = percent_format()) +
+    labs(y = "Probabilité d'être en état", x = "Age")
+
+
+S_health22 <- approxfun(x = km_health_pathol1_pop_gen2$time, y = km_health_pathol1_pop_gen2$pstate[, 1], yleft = 1, yright = 0, method = "constant")
+residual_health2_at502 <- -1 / S_health22(50) *
+    sum(
+        c(0, diff(km_health_pathol1_pop_gen2$pstate[km_health_pathol1_pop_gen2$time >= 50, 1])) *
+            km_health_pathol1_pop_gen2$time[km_health_pathol1_pop_gen2$time >= 50]
+    ) - 50
+
+pmsi_hly22 <- tibble(
+    value = c(residual_health2_at502),
+    indicator = paste("PMSI", c("hly avec adj. expo avancé"))
+)
+
+hly_compar_plot +
+    geom_hline(aes(yintercept = value, color = indicator), data = pmsi_hly2) +
+    geom_hline(aes(yintercept = value, color = indicator), data = pmsi_hly22)
+```
+
+
+Full model :
+
+```{r}
+gen_pop_data3 <- bind_rows(
+    select(e_life, id, debut_obs_age, fin_obs_age, patho_obs, date_naissance, debut_obs_date, fin_obs_date),
+    df_bonne_sante2 %>% mutate(patho_obs = patho_obs != "Censure") %>% select(-c(year, age, age_1jan))
+)
+
+km_health_pathol1_pop_gen3 <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = gen_pop_data3
+)
+
+tidy_surv_res %>%
+    bind_rows(
+        life_adj = tibble(
+            time = rep(km_health_pathol1_pop_gen3$time, 1),
+            pstate = as.vector(km_health_pathol1_pop_gen3$surv)
+        ) %>%
+            transmute(method = "life_adj", x = time, y = pstate),
+    ) %>%
+    ggplot() +
+    aes(
+        x = x,
+        y = y,
+        group = method,
+        color = method,
+    ) +
+    geom_line() +
+    geom_line(
+        mapping = aes(x = time, y = estimate, group = sexe, color = "INSEE"),
+        data = insee %>%
+            filter(age >= 50) %>%
+            group_by(sexe) %>%
+            transmute(
+                time = age,
+                estimate = lx / max(lx),
+            ) %>%
+            ungroup(),
+        inherit.aes = FALSE
+    ) +
+    scale_y_continuous(labels = percent_format()) +
+    labs(y = "Probabilité d'être en état", x = "Age")
+
+
+S_health22 <- approxfun(x = km_health_pathol1_pop_gen2$time, y = km_health_pathol1_pop_gen2$pstate[, 1], yleft = 1, yright = 0, method = "constant")
+residual_health2_at502 <- -1 / S_health22(50) *
+    sum(
+        c(0, diff(km_health_pathol1_pop_gen2$pstate[km_health_pathol1_pop_gen2$time >= 50, 1])) *
+            km_health_pathol1_pop_gen2$time[km_health_pathol1_pop_gen2$time >= 50]
+    ) - 50
+
+pmsi_hly22 <- tibble(
+    value = c(residual_health2_at502),
+    indicator = paste("PMSI", c("hly avec adj. expo avancé"))
+)
+
+hly_compar_plot +
+    geom_hline(aes(yintercept = value, color = indicator), data = pmsi_hly2) +
+    geom_hline(aes(yintercept = value, color = indicator), data = pmsi_hly22)
+```
+
+# Model
+
+We are intrested in factors determing HLY. 
+
+```{r}
+connect <- matrix(c(1, 1, 1, 0, 1, 1, 0, 0, 1), byrow = TRUE, ncol = 3)
+rownames(connect) <- colnames(connect) <- c("Good health", "Ill-health", "Death")
+statefig(c(1, 2), connect)
+```
+
+Of these transitions we are mostly intrested in "good health" => "Ill-health"
+
+For my best understanding I will now estimate a model with all these
+transitions. And then estimate another model only on the "Good health" ->
+"Ill-health" transition.
+
+I use the data without Imputation because we don't really care about the deaths.
+
+```{R}
+# Any patho1
+e_health_pathol <- ages_patho_cr(
+    individu_imput,
+    filter(evenement_pathol1, year(date_event) >= 2010),
+    c("pathol1", "STATE2_DECES"),
+    pathology,
+    50,
+    ymd("2010-01-01"),
+    ymd("2013-12-31")
+) %>%
+    mutate(
+        patho_obs = replace_na(patho_obs, "Censure"),
+        patho_obs = fct_relevel(patho_obs, "Censure"),
+        inital = "Bonne santé"
+    ) %>%
+    select(id, debut_obs_age, fin_obs_age, inital, patho_obs)
+
+km_multi <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = e_health_pathol,
+    id = id,
+    istate = inital
+)
+
+# Death is exluded
+km_single_exclude <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs == "pathol1") ~ 1,
+    data = e_health_pathol %>%
+        filter(patho_obs %in% c("Censure", "pathol1")),
+    id = id,
+    istate = inital
+)
+
+# Death as censorship (I expect this will increase HLY), since the times of
+# deaths $y$ will be recorde as "pathol1 unobserved but above $y$", which is
+# false since it is either "pathol1 did not occur" or at least "pathol1 is death"
+# Actually I will try the last one
+# Death is cnesure
+km_single_censure <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs == "pathol1") ~ 1,
+    data = e_health_pathol %>%
+        mutate(
+            patho_obs = replace(
+                patho_obs,
+                patho_obs %in% c("STATE2_DECES"),
+                "Censure"
+            )
+        ),
+    id = id,
+    istate = inital
+)
+
+# Death is pathol1
+km_single_pathol1 <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs == "pathol1") ~ 1,
+    data = e_health_pathol %>%
+        mutate(
+            patho_obs = replace(
+                patho_obs,
+                patho_obs %in% c("STATE2_DECES"),
+                "pathol1"
+            )
+        ),
+    id = id,
+    istate = inital
+)
+
+bind_rows(
+    `exclude` = tidy_surv(km_single_exclude),
+    `censure` = tidy_surv(km_single_censure),
+    `pathol1` = tidy_surv(km_single_pathol1),
+    `compet` = tidy_surv(km_multi) %>% filter(pstate == "Bonne santé") %>% rename(surv = pstate),
+    .id = "method"
+) %>%
+    pivot_wider(
+        id_cols = time,
+        values_from = surv,
+        names_from = method
+    ) %>%
+    print(n = 100)
+ggplot() +
+    aes(
+        x = time,
+        y = surv,
+        group = method,
+        color = method
+    ) +
+    geom_line()
+
+
+with(km_multi, surv_time(time, pstate[, 1], 50))
+-1 * with(km_multi, surv_time(time, pstate[, 1], 50)) + with(km_single_exclude, surv_time(time, surv, 50))
+-1 * with(km_multi, surv_time(time, pstate[, 1], 50)) + with(km_single_censure, surv_time(time, surv, 50))
+-1 * with(km_multi, surv_time(time, pstate[, 1], 50)) + with(km_single_pathol1, surv_time(time, surv, 50))
+```
+
+So there is a slight difference, when death is included it is considered as
+competitive risk. So what happens ?
+
+When we consider death to be a censor to ill health, this means that we are
+informing the model that ill health would have come later, which is wrong.
+
+When we exclude deaths we're not taking into account people.., dunno what it
+does but it's not good to excldue information.
+
+FInaly if we consider that death is itself a Ill-health then we recover the
+exact survival curve of staying in good health.
+
+This is not surprising afteer the fact, since what we're really intrested in
+the duration of "Good health", whatever the reason for leaving good health.
+
+So what we're really intrested in is actually this model
+
+```{r}
+connect2 <- matrix(c(1, 1, 0, 1), byrow = TRUE, ncol = 2)
+rownames(connect2) <- colnames(connect2) <- c("Good health", "Not good health")
+statefig(c(1, 1), connect2)
+```
+
+Nice.
+
+Moreover the discussion about how to take into account deaths is of secondary
+importance since, by construction, pathol1 cover vast majority of deaths, so
+no matter how deaths are handled the impact on the outcome is marginal.
+
+# The model
+
+Now the question is if imputed deaths have any impact on the HLY.
+
+
+```{r}
+e_health_pathol <- ages_patho(
+    individu,
+    evenement %>%
+        filter(!event %in% "STATE1_NO_PATHOL1") %>%
+        mutate(
+            event = fct_other(event, drop = pathol1, other_level = "pathol1"),
+            event = fct_drop(event)
+        ) %>%
+        {
+            dt <- as.data.table(.)
+            dt[!duplicated(dt), ]
+            as_tibble(dt)
+        } %>%
+        filter(year(date_event) >= 2010),
+    c("pathol1", "STATE2_DECES"),
+    pathology,
+    50,
+    ymd("2010-01-01"),
+    ymd("2012-12-31")
+) %>%
+    select(id, debut_obs_age, fin_obs_age, patho_obs)
+
+
+tar_read(data_before_norm) %>%
+    select(event, event_censor) %>%
+    filter(event == "STATE2_DECES") %>%
+    group_by(event, event_censor) %>%
+    count()
+evenement_imput$event %>% fct_count(sort = TRUE)
+evenement$event %>% fct_count(sort = TRUE)
+e_health_pathol_imput <- ages_patho(
+    individu,
+    evenement_imput %>%
+        filter(!event %in% "STATE1_NO_PATHOL1") %>%
+        mutate(
+            event = fct_other(event, drop = pathol1, other_level = "pathol1"),
+            event = fct_drop(event)
+        ) %>%
+        {
+            dt <- as.data.table(.)
+            dt[!duplicated(dt), ]
+            as_tibble(dt)
+        } %>%
+        filter(year(date_event) >= 2010),
+    c("pathol1", "STATE2_DECES"),
+    pathology,
+    50,
+    ymd("2010-01-01"),
+    ymd("2012-12-31")
+) %>%
+    select(id, debut_obs_age, fin_obs_age, patho_obs)
+
+km <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = e_health_pathol,
+    id = id,
+)
+
+km_imput <- survfit(
+    Surv(debut_obs_age, fin_obs_age, patho_obs) ~ 1,
+    data = e_health_pathol_imput,
+    id = id,
+)
+
+with(km_imput, surv_time(time, surv, 50))
+with(km, surv_time(time, surv, 50))
+```
+
+
+
